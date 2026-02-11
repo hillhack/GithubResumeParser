@@ -150,13 +150,20 @@ Focus on:
 
 
 def analyze_all_repos(username, job_description):
-    """Analyze all repos against the JD"""
+    """Analyze non-forked repos against the JD (last 10 only)"""
     
     # Load GitHub data
     github_data = load_github_data()
-    repos = github_data['repositories']
+    all_repos = github_data['repositories']
     
-    print(f"\n🔍 Analyzing {len(repos)} repositories for @{username}")
+    # Filter out forked repos - only analyze original repos owned by user
+    own_repos = [repo for repo in all_repos if not repo.get('is_fork', False)]
+    
+    # Take last 10 repos (most recently updated)
+    repos = own_repos[:10]
+    
+    print(f"\n🔍 Analyzing last {len(repos)} non-forked repositories for @{username}")
+    print(f"   (Filtered out {len([r for r in all_repos if r.get('is_fork', False)])} forked repos)")
     print("=" * 60)
     
     results = []
@@ -194,6 +201,7 @@ def analyze_all_repos(username, job_description):
             'description': repo['description'],
             'stars': repo['stars'],
             'language': repo['language'],
+            'is_fork': repo.get('is_fork', False),
             'analysis': analysis
         })
     
