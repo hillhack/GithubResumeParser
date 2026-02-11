@@ -114,9 +114,25 @@ for i, repo in enumerate(repos[:5], 1):
 1. **Free Gemini API Rate Limits**: 
    - ~1-2 requests per minute
    - Script includes retry logic but may still fail with many repos
-   - **Solution**: Wait 24 hours or analyze fewer repos
+   - **Solutions:**
+     - **Option 1**: Wait 24 hours for rate limits to reset
+     - **Option 2**: Use `repo_analyzer_groq.py` instead (free Groq API with higher limits)
+     - **Option 3**: Upgrade to Gemini paid tier
 
-2. **No README = Score 0**: 
+2. **Using Groq Instead (Recommended)**:
+   ```bash
+   # 1. Get free API key from https://console.groq.com
+   # 2. Add to .env file:
+   GROQ_API_KEY=your_groq_api_key
+   
+   # 3. Run the Groq analyzer:
+   python3 repo_analyzer_groq.py
+   ```
+   - ✅ Much higher rate limits (30 requests/min)
+   - ✅ Faster responses
+   - ✅ Still completely free
+
+3. **No README = Score 0**: 
    - Repos without READMEs can't be analyzed
    - **Solution**: Add READMEs to your important projects
 
