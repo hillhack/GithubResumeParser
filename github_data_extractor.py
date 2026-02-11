@@ -97,6 +97,7 @@ def extract_github_data(username):
                 'url': repo.get('html_url'),
                 'created_at': repo.get('created_at'),
                 'updated_at': repo.get('updated_at'),
+                'is_fork': repo.get('fork', False),
             }
             for repo in repos
         ],
