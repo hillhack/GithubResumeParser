@@ -1,162 +1,173 @@
 # 🎯 GitHub Resume Parser
 
-**Simple MVP to extract GitHub data and analyze repos against job descriptions**
+**Simple MVP to extract GitHub data and analyze repos using AI**
 
 ---
 
 ## 📋 What This Does
 
 1. **Extracts** your GitHub profile, repos, languages, and stats
-2. **Analyzes** each repo's README against a job description using AI
+2. **Analyzes** each repo using AI (Gemini or Groq) against job descriptions
 3. **Ranks** repos by relevance to help build your resume
+
+---
+
+## 📁 Two Main Files
+
+| File | Purpose | What It Does |
+|------|---------|--------------|
+| **`github_data_extractor.py`** | Data extraction | Gets all GitHub data via API |
+| **`ai_analyzer.py`** | AI/ML analysis | Uses AI to analyze repos vs job description |
 
 ---
 
 ## 🚀 Quick Start
 
-### Step 1: Setup (One-Time)
+### Step 1: Install Dependencies
 ```bash
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-Make sure your `.env` file exists in the parent directory (`../`) with:
+### Step 2: Setup API Keys
+Add to `.env` file in parent directory (`../`):
 ```
 GITHUB_CLIENT_ID=your_client_id
 GITHUB_CLIENT_SECRET=your_client_secret
-GEMINI_API_KEY=your_gemini_api_key
+
+# Add ONE of these (Groq recommended):
+GROQ_API_KEY=your_groq_key          # Fast, high limits (get from console.groq.com)
+GEMINI_API_KEY=your_gemini_key      # Slower, low limits
 ```
 
-### Step 2: Extract GitHub Data
+### Step 3: Extract GitHub Data
 ```bash
 python3 github_data_extractor.py
 ```
-- Enter any GitHub username when prompted
-- Creates `github_data.json` with all repos and profile info
-- **This is the main file you run first!** ✅
+- Enter any GitHub username
+- Creates `github_data.json`
 
-### Step 3: Analyze Repos (Optional)
+### Step 4: Analyze with AI
 ```bash
-python3 repo_analyzer.py
+python3 ai_analyzer.py
 ```
-- Reads `github_data.json` from Step 2
-- Analyzes each repo's README against the job description
-- Creates `repo_analysis.json` with relevance scores
-- ⚠️ **Note:** Free Gemini API has strict rate limits (1-2 req/min)
-
----
-
-## 📁 Files Explained
-
-### Python Scripts (What You Run)
-| File | Purpose | Run Order |
-|------|---------|-----------|
-| `github_data_extractor.py` | Extracts GitHub data | **Run FIRST** |
-| `repo_analyzer.py` | Analyzes repos vs JD | Run second (optional) |
-
-### Output Files (Auto-Generated)
-| File | What It Contains |
-|------|------------------|
-| `github_data.json` | All your GitHub data (profile, repos, languages) |
-| `repo_analysis.json` | Repo analysis results with scores 0-10 |
-
-### Config Files
-| File | Purpose |
-|------|---------|
-| `requirements.txt` | Python dependencies |
-| `README.md` | This file |
+- Reads `github_data.json`
+- Analyzes last 10 non-forked repos
+- Creates `repo_analysis.json`
+- Auto-uses Groq if available, otherwise Gemini
 
 ---
 
 ## 📊 Example Output
 
-After running `github_data_extractor.py`:
+**Data Extraction:**
 ```
 ✅ Data extraction complete!
 Profile: @hillhack
 Repos: 28
 Stars: 3
-Languages: Python, Jupyter Notebook, Shell, Rust, C++
+Languages: Python, Jupyter Notebook, Rust
 ```
 
-After running `repo_analyzer.py`:
+**AI Analysis:**
 ```
-🏆 Top 5 Most Relevant:
-1. mesa-llm - Score: 9/10
-   Relevance: High
-   Language: Python
-   ⭐ 0 stars
+🔍 Analyzing last 10 non-forked repositories for @hillhack
+   Using: Groq (Fast)
+   Filtered: 5 forked repos
+============================================================
+
+[1/10] GithubResumeParser
+  📄 README found (3528 chars)
+  ⭐ Score: 7/10
+  📊 Relevance: Medium
+  💡 Project demonstrates data extraction and API integration skills...
 ```
 
 ---
 
 ## ⚙️ Customization
 
-### Change the Job Description
-Edit `repo_analyzer.py` and modify the `JOB_DESCRIPTION` variable (around line 200):
+### Change Job Description
+Edit `ai_analyzer.py` line ~280:
 ```python
 JOB_DESCRIPTION = """
 Your custom job description here...
 """
 ```
 
-### Analyze Specific Repos Only
-Modify line ~165 in `repo_analyzer.py`:
+### Analyze Different Number of Repos
+Edit `ai_analyzer.py` line ~225:
 ```python
-# Analyze only first 5 repos
-for i, repo in enumerate(repos[:5], 1):
+repos = own_repos[:10]  # Change 10 to any number
 ```
 
 ---
 
-## ⚠️ Known Issues
+## 🔧 API Comparison
 
-1. **Free Gemini API Rate Limits**: 
-   - ~1-2 requests per minute
-   - Script includes retry logic but may still fail with many repos
-   - **Solutions:**
-     - **Option 1**: Wait 24 hours for rate limits to reset
-     - **Option 2**: Use `repo_analyzer_groq.py` instead (free Groq API with higher limits)
-     - **Option 3**: Upgrade to Gemini paid tier
+| API | Speed | Rate Limit | Setup |
+|-----|-------|------------|-------|
+| **Groq** ⚡ | Fast | 30 req/min | console.groq.com |
+| **Gemini** 🐌 | Slow | 1-2 req/min | aistudio.google.com |
 
-2. **Using Groq Instead (Recommended)**:
-   ```bash
-   # 1. Get free API key from https://console.groq.com
-   # 2. Add to .env file:
-   GROQ_API_KEY=your_groq_api_key
-   
-   # 3. Run the Groq analyzer:
-   python3 repo_analyzer_groq.py
-   ```
-   - ✅ Much higher rate limits (30 requests/min)
-   - ✅ Faster responses
-   - ✅ Still completely free
-
-3. **No README = Score 0**: 
-   - Repos without READMEs can't be analyzed
-   - **Solution**: Add READMEs to your important projects
+**Recommendation**: Use Groq for speed and higher limits!
 
 ---
 
-## 🔧 Troubleshooting
+## ⚠️ Troubleshooting
 
 **Issue**: `github_data.json` not found  
 **Fix**: Run `github_data_extractor.py` first
 
-**Issue**: API rate limit errors (429)  
-**Fix**: Wait a few hours or reduce number of repos to analyze
+**Issue**: Rate limit errors with Gemini  
+**Fix**: Switch to Groq API (add `GROQ_API_KEY` to `.env`)
 
-**Issue**: No .env file found  
-**Fix**: Create `.env` in parent directory with your API keys
+**Issue**: No AI API key found  
+**Fix**: Add `GROQ_API_KEY` or `GEMINI_API_KEY` to `.env`
+
+**Issue**: Repos without README get score 0  
+**Fix**: Add READMEs to your important projects
 
 ---
 
-## 📝 Summary
+## 📝 File Structure
 
-- **Main file to run**: `github_data_extractor.py` → extracts GitHub data
-- **Optional second file**: `repo_analyzer.py` → analyzes with AI (has rate limits)
-- **Output**: Two JSON files with all your data
+```
+GithubResumeParser/
+├── github_data_extractor.py   # FILE 1: Data extraction
+├── ai_analyzer.py              # FILE 2: AI/ML analysis
+├── github_data.json            # Generated: Extracted data
+├── repo_analysis.json          # Generated: Analysis results
+├── requirements.txt            # Dependencies
+├── .gitignore                  # Ignore generated files
+└── README.md                   # This file
+```
 
-**Current status after your run:**
-✅ Successfully extracted data for @hillhack (28 repos)  
-⚠️ Analysis hit API rate limits (can retry later)
+---
+
+## 🎯 How It Works
+
+**Step 1: Data Extraction**
+- Uses GitHub REST API
+- Fetches profile, repos, languages
+- Filters out forked repos
+- Saves to JSON
+
+**Step 2: AI Analysis**
+- Fetches README for each repo
+- Sends to AI (Groq or Gemini)
+- Gets relevance score 0-10
+- Ranks by match with job description
+
+---
+
+## ✅ Features
+
+- ✅ **Simple**: Just 2 Python files
+- ✅ **Smart**: Auto-selects best AI API
+- ✅ **Fast**: Groq analyzes 10 repos in ~30 seconds
+- ✅ **Filtered**: Skips forked repos automatically
+- ✅ **Free**: Both APIs have free tiers
+
+---
+
+**Ready to use!** 🚀

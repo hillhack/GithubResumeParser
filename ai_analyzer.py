@@ -1,6 +1,6 @@
 """
-Minimal Repo Analyzer
-Analyzes GitHub repos against a job description using Gemini API
+AI/ML Repo Analyzer
+Analyzes GitHub repos against job descriptions using AI (Gemini or Groq)
 """
 
 import os
@@ -13,11 +13,16 @@ import time
 load_dotenv('../.env')
 
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID')
 GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET')
 
-# Gemini API endpoint (using gemini-2.0-flash)
+# API endpoints
 GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+# Auto-select API: Prefer Groq if available (higher rate limits)
+USE_GROQ = bool(GROQ_API_KEY)
 
 
 def load_github_data(filename='github_data.json'):
@@ -33,7 +38,6 @@ def fetch_readme(repo_full_name):
     
     if response.status_code == 200:
         readme_data = response.json()
-        # Get the raw content
         content_url = readme_data.get('download_url')
         if content_url:
             content_response = requests.get(content_url)
@@ -42,24 +46,15 @@ def fetch_readme(repo_full_name):
     return None
 
 
-def analyze_similarity(readme_content, job_description):
-    """Use Gemini to analyze similarity between README and JD"""
-    
-    if not readme_content or len(readme_content.strip()) < 50:
-        return {
-            'score': 0,
-            'relevance': 'No Content',
-            'reasoning': 'README is too short or empty'
-        }
-    
-    prompt = f"""
-You are analyzing a GitHub project's README against a job description.
+def analyze_with_groq(readme_content, job_description):
+    """Use Groq API for analysis (fast, high rate limits)"""
+    prompt = f"""You are analyzing a GitHub project's README against a job description.
 
 JOB DESCRIPTION:
 {job_description}
 
 PROJECT README:
-{readme_content[:2000]}  # Limit to first 2000 chars
+{readme_content[:2000]}
 
 Task: Analyze how relevant this project is to the job requirements.
 
@@ -74,64 +69,128 @@ Focus on:
 - Relevant skills demonstrated
 """
     
-    try:
-        # Make REST API call to Gemini with retry logic
-        payload = {
-            "contents": [{
-                "parts": [{
-                    "text": prompt
-                }]
-            }]
-        }
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.3,
+        "max_tokens": 500
+    }
+    
+    response = requests.post(GROQ_API_URL, headers=headers, json=payload)
+    
+    if response.status_code != 200:
+        return None, f'API returned status {response.status_code}'
+    
+    result_data = response.json()
+    result_text = result_data['choices'][0]['message']['content']
+    time.sleep(0.5)  # Small delay
+    
+    return result_text, None
+
+
+def analyze_with_gemini(readme_content, job_description):
+    """Use Gemini API for analysis (slower, lower rate limits)"""
+    prompt = f"""You are analyzing a GitHub project's README against a job description.
+
+JOB DESCRIPTION:
+{job_description}
+
+PROJECT README:
+{readme_content[:2000]}
+
+Task: Analyze how relevant this project is to the job requirements.
+
+Provide your response in this exact format:
+SCORE: [0-10]
+RELEVANCE: [High/Medium/Low/None]
+REASONING: [2-3 sentences explaining the match]
+
+Focus on:
+- Technologies used (RAG, LLMs, embeddings, vector DBs)
+- Project complexity and scope
+- Relevant skills demonstrated
+"""
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    
+    # Retry logic for rate limiting
+    max_retries = 3
+    for attempt in range(max_retries):
+        response = requests.post(GEMINI_API_URL, json=payload)
         
-        # Retry up to 3 times for rate limiting
-        max_retries = 3
-        for attempt in range(max_retries):
-            response = requests.post(GEMINI_API_URL, json=payload)
-            
-            if response.status_code == 200:
-                break
-            elif response.status_code == 429:
-                # Rate limited, wait and retry
-                if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 3  # 3, 6, 9 seconds
-                    print(f"  ⏳ Rate limited, waiting {wait_time}s...")
-                    time.sleep(wait_time)
-                else:
-                    return {
-                        'score': 0,
-                        'relevance': 'Rate Limited',
-                        'reasoning': 'API rate limit exceeded after retries'
-                    }
+        if response.status_code == 200:
+            result_data = response.json()
+            result_text = result_data['candidates'][0]['content']['parts'][0]['text']
+            time.sleep(2)  # Delay between requests
+            return result_text, None
+        elif response.status_code == 429:
+            if attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 3
+                print(f"  ⏳ Rate limited, waiting {wait_time}s...")
+                time.sleep(wait_time)
             else:
-                return {
-                    'score': 0,
-                    'relevance': 'API Error',
-                    'reasoning': f'API returned status {response.status_code}'
-                }
+                return None, 'API rate limit exceeded after retries'
+        else:
+            return None, f'API returned status {response.status_code}'
+    
+    return None, 'Unknown error'
+
+
+def parse_ai_response(result_text):
+    """Parse AI response into structured format"""
+    lines = result_text.strip().split('\n')
+    score = 0
+    relevance = 'Unknown'
+    reasoning = ''
+    
+    for line in lines:
+        if line.startswith('SCORE:'):
+            try:
+                score = int(line.split(':')[1].strip().split('/')[0])
+            except:
+                score = 0
+        elif line.startswith('RELEVANCE:'):
+            relevance = line.split(':')[1].strip()
+        elif line.startswith('REASONING:'):
+            reasoning = line.split(':', 1)[1].strip()
+    
+    return score, relevance, reasoning
+
+
+def analyze_similarity(readme_content, job_description):
+    """Main AI analysis function - uses best available API"""
+    
+    if not readme_content or len(readme_content.strip()) < 50:
+        return {
+            'score': 0,
+            'relevance': 'No Content',
+            'reasoning': 'README is too short or empty'
+        }
+    
+    try:
+        # Use Groq if available, otherwise Gemini
+        if USE_GROQ:
+            result_text, error = analyze_with_groq(readme_content, job_description)
+        else:
+            result_text, error = analyze_with_gemini(readme_content, job_description)
         
-        result_data = response.json()
-        result_text = result_data['candidates'][0]['content']['parts'][0]['text']
+        if error:
+            return {
+                'score': 0,
+                'relevance': 'API Error',
+                'reasoning': error
+            }
         
-        # Parse the response
-        lines = result_text.strip().split('\n')
-        score = 0
-        relevance = 'Unknown'
-        reasoning = ''
-        
-        for line in lines:
-            if line.startswith('SCORE:'):
-                try:
-                    score = int(line.split(':')[1].strip().split('/')[0])
-                except:
-                    score = 0
-            elif line.startswith('RELEVANCE:'):
-                relevance = line.split(':')[1].strip()
-            elif line.startswith('REASONING:'):
-                reasoning = line.split(':', 1)[1].strip()
-        
-        # Add small delay between requests to avoid rate limiting
-        time.sleep(2)
+        score, relevance, reasoning = parse_ai_response(result_text)
         
         return {
             'score': score,
@@ -141,7 +200,7 @@ Focus on:
         }
     
     except Exception as e:
-        print(f"  ⚠️  Gemini API error: {str(e)}")
+        print(f"  ⚠️  AI API error: {str(e)}")
         return {
             'score': 0,
             'relevance': 'Error',
@@ -149,21 +208,20 @@ Focus on:
         }
 
 
-def analyze_all_repos(username, job_description):
-    """Analyze non-forked repos against the JD (last 10 only)"""
+def analyze_repos(username, job_description):
+    """Analyze non-forked repos using AI (last 10 only)"""
     
-    # Load GitHub data
     github_data = load_github_data()
     all_repos = github_data['repositories']
     
-    # Filter out forked repos - only analyze original repos owned by user
+    # Filter: only non-forked repos
     own_repos = [repo for repo in all_repos if not repo.get('is_fork', False)]
+    repos = own_repos[:10]  # Last 10
     
-    # Take last 10 repos (most recently updated)
-    repos = own_repos[:10]
-    
+    api_name = "Groq (Fast)" if USE_GROQ else "Gemini (Slow)"
     print(f"\n🔍 Analyzing last {len(repos)} non-forked repositories for @{username}")
-    print(f"   (Filtered out {len([r for r in all_repos if r.get('is_fork', False)])} forked repos)")
+    print(f"   Using: {api_name}")
+    print(f"   Filtered: {len([r for r in all_repos if r.get('is_fork', False)])} forked repos")
     print("=" * 60)
     
     results = []
@@ -175,13 +233,10 @@ def analyze_all_repos(username, job_description):
         print(f"\n[{i}/{len(repos)}] {repo_name}")
         print(f"  Description: {repo['description'] or 'No description'}")
         
-        # Fetch README
         readme = fetch_readme(repo_full_name)
         
         if readme:
             print(f"  📄 README found ({len(readme)} chars)")
-            
-            # Analyze with Gemini
             analysis = analyze_similarity(readme, job_description)
             
             print(f"  ⭐ Score: {analysis['score']}/10")
@@ -208,7 +263,7 @@ def analyze_all_repos(username, job_description):
     return results
 
 
-def save_analysis_results(results, filename='repo_analysis.json'):
+def save_results(results, filename='repo_analysis.json'):
     """Save analysis results to JSON"""
     with open(filename, 'w') as f:
         json.dump(results, f, indent=2)
@@ -221,7 +276,6 @@ def print_summary(results):
     print("📈 TOP MATCHING REPOSITORIES")
     print("=" * 60)
     
-    # Sort by score
     sorted_results = sorted(results, key=lambda x: x['analysis']['score'], reverse=True)
     
     print("\n🏆 Top 5 Most Relevant:")
@@ -262,17 +316,21 @@ if __name__ == "__main__":
       often using Python and APIs (e.g., OpenAI, Gemini, or self-hosted models).
     """
     
-    # Get username from github_data.json
+    # Get username from data
     github_data = load_github_data()
     username = github_data['profile']['username']
     
-    # Analyze all repos
-    results = analyze_all_repos(username, JOB_DESCRIPTION)
+    # Check API availability
+    if not USE_GROQ and not GEMINI_API_KEY:
+        print("❌ Error: No AI API key found in .env file")
+        print("\n📝 Add one of these to your .env:")
+        print("   GROQ_API_KEY=xxx     (Recommended - faster, higher limits)")
+        print("   GEMINI_API_KEY=xxx   (Alternative)")
+        exit(1)
     
-    # Save results
-    save_analysis_results(results)
-    
-    # Print summary
+    # Run analysis
+    results = analyze_repos(username, JOB_DESCRIPTION)
+    save_results(results)
     print_summary(results)
     
     print("\n✅ Analysis complete!")
