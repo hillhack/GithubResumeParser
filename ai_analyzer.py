@@ -229,21 +229,10 @@ if __name__ == "__main__":
         print("❌ Add GROQ_API_KEY or GEMINI_API_KEY to .env")
         exit(1)
     
-    print("\n📝 Enter the job description (paste and press Ctrl+D when done):")
-    print("=" * 80)
+    # Default JD - edit here if needed
+    job_desc = """RAG pipeline development, LLM integration, prompt engineering, 
+    vector databases, embeddings, chunking strategies, evaluation metrics"""
     
-    jd_lines = []
-    try:
-        while True:
-            jd_lines.append(input())
-    except EOFError:
-        pass
-    
-    job_desc = '\n'.join(jd_lines).strip()
-    
-    if not job_desc:
-        print("\n⚠️  Using default Mesa-LLM JD...")
-        job_desc = """Mesa-LLM: RAG pipeline development, prompt engineering, agentic AI with 
-        LangChain/LlamaIndex, model evaluation, LLM integration with Python APIs."""
-    
+    print(f"\n📝 Using job description: {job_desc[:80]}...")
     analyze_repos(job_desc)
+
