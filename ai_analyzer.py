@@ -109,11 +109,27 @@ def analyze_repos(job_desc):
     print("\n✅ Done! Saved to repo_analysis.json")
 
 if __name__ == "__main__":
-    JOB = """Mesa-LLM: RAG pipeline development, prompt engineering, agentic AI with 
-    LangChain/LlamaIndex, model evaluation, LLM integration with Python APIs."""
-    
     if not GROQ_KEY and not GEMINI_KEY:
         print("❌ Add GROQ_API_KEY or GEMINI_API_KEY to .env")
         exit(1)
     
-    analyze_repos(JOB)
+    # Get job description from user
+    print("\n📝 Enter the job description (paste and press Ctrl+D or Ctrl+Z when done):")
+    print("=" * 60)
+    
+    jd_lines = []
+    try:
+        while True:
+            line = input()
+            jd_lines.append(line)
+    except EOFError:
+        pass
+    
+    job_desc = '\n'.join(jd_lines).strip()
+    
+    if not job_desc:
+        print("\n⚠️  No job description provided. Using default Mesa-LLM JD...")
+        job_desc = """Mesa-LLM: RAG pipeline development, prompt engineering, agentic AI with 
+        LangChain/LlamaIndex, model evaluation, LLM integration with Python APIs."""
+    
+    analyze_repos(job_desc)
