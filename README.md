@@ -39,17 +39,17 @@ This tool does exactly that — give it a GitHub username and job description, a
 ## 🏗️ Architecture
 
 ```
-Streamlit UI (client.py)
+Streamlit Frontend (dashboard.py)
+        ↓ (JSON-RPC via stdio)
+MCP Client Wrapper (client.py)
         ↓
-GitHub Extraction Agent  ←  github_extractor.py
+FastMCP Server (server.py)
+  ├── Tool: Extract GitHub Profile
+  ├── Tool: Analyze Job Description
+  ├── Tool: Score Repositories
+  └── Tool: Generate Resume Content
         ↓
-JD Analysis Agent        ←  jd_analyzer.py
-        ↓
-Repository Ranking Agent ←  repo_ranker.py
-        ↓
-Resume Generation Agent  ←  resume_generator.py
-        ↓
-LaTeX Rendering Agent    ←  latex_generator.py
+LaTeX Rendering (latex.py)
 ```
 
 ---
@@ -77,7 +77,7 @@ cp .env.example .env
 # Edit .env with your API keys
 
 # 4. Run
-streamlit run client.py
+streamlit run dashboard.py
 ```
 
 Open **http://localhost:8501** in your browser.
@@ -147,12 +147,10 @@ Export PDF (via LaTeX) / Markdown
 
 ```
 GithubResumeParser/
-├── client.py              # Streamlit UI (main entry point)
-├── github_extractor.py    # GitHub REST API data extraction
-├── jd_analyzer.py         # LLM-based job description parsing
-├── repo_ranker.py         # JD relevance + popularity ranking
-├── resume_generator.py    # Bullet points, summary, skills generation
-├── latex_generator.py     # LaTeX templates (ATS, Modern, Research)
+├── dashboard.py           # Streamlit Frontend UI
+├── client.py              # MCP Client (stdio wrapper)
+├── server.py              # FastMCP Server (LLM & Logic)
+├── latex.py               # LaTeX generator and templates
 ├── requirements.txt       # Python dependencies
 ├── .env.example           # Environment variable template
 └── README.md
@@ -165,9 +163,10 @@ GithubResumeParser/
 | Layer | Technology |
 |---|---|
 | Frontend | Streamlit |
+| Agent Layer | MCP (FastMCP) |
 | LLM | Groq + LLaMA 3.3 70B |
 | Data Source | GitHub REST API v3 |
-| Resume Rendering | LaTeX (pdflatex / Overleaf) |
+| Export | LaTeX (pdflatex / Overleaf) |
 | Language | Python 3.10+ |
 
 ---
