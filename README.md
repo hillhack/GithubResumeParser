@@ -1,4 +1,4 @@
-# 🎯 GitHub Resume Parser
+# 🎯 alldone
 
 > **JD → GitHub → ATS Resume** — AI-powered resume generator that tailors your GitHub profile to any job description, using a full **Model Context Protocol (MCP)** multi-agent architecture.
 
@@ -32,7 +32,7 @@ This tool does exactly that — give it a GitHub username and a job description,
 | **Smart Repo Ranking** | LLM scoring + keyword-overlap fallback — no repo ever shows 0% unfairly |
 | **Resume Generation** | Tailored action-verb bullets, professional summary, grouped skills section |
 | **Skill Gap Analysis** | Shows exactly what the JD needs vs. what your GitHub proves |
-| **LaTeX Export** | 3 templates: ATS Classic, Modern, Research |
+| **LaTeX Export** | ATS Classic template with action-verb bullets and skills section |
 
 ---
 
@@ -59,7 +59,7 @@ The Streamlit frontend **never** calls GitHub or Groq directly. Every operation 
 ## 📁 Project Structure
 
 ```
-GithubResumeParser/
+alldone/
 ├── dashboard.py      # Streamlit UI — renders tabs, calls MCP client
 ├── client.py         # MCP Client — asyncio stdio wrapper, sync interface
 ├── server.py         # FastMCP Server — GitHub API + Groq LLM tools
@@ -83,8 +83,8 @@ GithubResumeParser/
 
 ```bash
 # 1. Clone
-git clone https://github.com/hillhack/GithubResumeParser
-cd GithubResumeParser
+git clone https://github.com/hillhack/alldone
+cd alldone
 
 # 2. Install dependencies
 pip install -r requirements.txt
@@ -121,7 +121,7 @@ Enter GitHub Username
         ↓
 Paste Job Description
         ↓
-Choose Resume Style  (1-page / 2-page · ATS / Modern / Research)
+Choose Resume Length  (1-page / 2-page)
         ↓
 Click 🚀 Generate Resume
         ↓
