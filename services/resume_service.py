@@ -23,20 +23,23 @@ def generate_resume_content(
 Target Role: {jd_profile.role}
 Domain: {jd_profile.domain}
 
+Job Description Required Skills: {', '.join(jd_profile.required_skills)}
+Job Description Preferred Skills: {', '.join(jd_profile.preferred_skills)}
+
 Candidate Project Profile:
 {repo.model_dump_json()}
 
 Follow these strict rules:
-1. Write exactly 3-4 concise bullets focusing on what was built, tech used, problem solved, and measurable impact.
-2. Provide a 1-sentence one_liner (max 20-30 words) explaining what the project does. Do not repeat the same info from bullets.
-3. Extract the tech stack (languages, frameworks, DBs, cloud, APIs).
-CRITICAL: You MUST NOT invent, fabricate, or add any technologies, skills, or features that are not explicitly present in the Candidate Project Profile.
+1. Write exactly 3-4 highly concise, punchy bullets (maximum 15-20 words per bullet). Start with strong action verbs. Focus on what was built, problem solved, and measurable impact.
+2. Provide a 1 sentence description explaining the core purpose and architecture of the project.
+3. Filter the tech stack to ONLY include technologies relevant to the Job Description skills above, plus 1 or 2 core defining technologies of the project. Keep the total tech stack list to 5-8 items maximum.
+CRITICAL: Explicitly incorporate the 'domain', 'key_features', and 'architecture_patterns' into your bullet points, but keep them extremely brief. Do not make up info.
 
 Return ONLY JSON:
 {{
     "bullets": ["<bullet 1>", "<bullet 2>", "<bullet 3>"],
     "tech_stack": ["<tech1>", "<tech2>"],
-    "one_liner": "<one sentence>"
+    "one_liner": "<one sentence explaining the core purpose and architecture>"
 }}
 """
         raw = call_llm(f"You are an expert resume writer. Output ONLY JSON.{sys_override}", prompt, model_choice)
@@ -51,15 +54,17 @@ Return ONLY JSON:
         })
 
     # Generate Professional Summary
-    sum_prompt = f"""Write a concise (3-4 lines) ATS-friendly professional summary.
-Avoid generic statements (Highly motivated, Passionate). Describe experience areas, technical strengths, system types, and specialization.
+    sum_prompt = f"""Write a highly concise (max 2-3 lines) ATS-friendly professional summary.
+CRITICAL: The summary MUST directly connect the candidate's specific top projects and technical skills to the core requirements of the Job Description. Do NOT use fluff words (e.g. passionate, motivated). Only state factual overlaps between what they have built and what the JD needs.
+
 Candidate: {profile.name or profile.username}
 Bio: {profile.bio}
 Domains: {profile.primary_domains}
-Role: {jd_profile.role}
-Top Projects: {[p['name'] for p in projects]}
+Job Role: {jd_profile.role}
+Required JD Skills: {', '.join(jd_profile.required_skills)}
+Top Candidate Projects: {[p['name'] for p in projects]}
 
-Return ONLY JSON: {{"summary": "<3-4 sentences ATS-friendly>"}}"""
+Return ONLY JSON: {{"summary": "<2-3 sentence tailored summary>"}}"""
     
     raw = call_llm("Return ONLY JSON.", sum_prompt, model_choice)
     summary = extract_json_from_llm(raw).get("summary", "")
@@ -94,14 +99,29 @@ Return ONLY JSON: {{"summary": "<3-4 sentences ATS-friendly>"}}"""
     if not matched_skills:
         matched_skills = list(candidate_skills)[:15]
         
-    skills_dict = {"JD Matched Skills": matched_skills}
+    skills_dict = {}
     
-    # Restore Categorized Skills from Profile
-    if profile.programming_languages: skills_dict["Languages"] = profile.programming_languages
-    if profile.frameworks: skills_dict["Technologies"] = profile.frameworks
-    if profile.tools_and_platforms: skills_dict["Tools"] = profile.tools_and_platforms
-    if profile.databases: skills_dict["Databases"] = profile.databases
-    if profile.cloud_technologies: skills_dict["Cloud"] = profile.cloud_technologies
+    # Aggregate all skills cleanly from Profile and Repositories
+    lang_set = set(profile.programming_languages or [])
+    frameworks_set = set(profile.frameworks or [])
+    tools_set = set(profile.tools_and_platforms or [])
+    db_cloud_set = set((profile.databases or []) + (profile.cloud_technologies or []))
+    
+    for repo in selected_repos:
+        lang_set.update(repo.programming_languages or [])
+        frameworks_set.update((repo.frameworks or []) + (repo.libraries or []))
+        tools_set.update(repo.tools or [])
+        db_cloud_set.update((repo.database or []) + (repo.cloud or []))
+        
+    skills_dict = {}
+    if lang_set:
+        skills_dict["Languages"] = list(lang_set)
+    if frameworks_set:
+        skills_dict["Frameworks & Libraries"] = list(frameworks_set)
+    if tools_set:
+        skills_dict["Tools & Platforms"] = list(tools_set)
+    if db_cloud_set:
+        skills_dict["Databases & Cloud"] = list(db_cloud_set)
 
     return {
         "profile": {

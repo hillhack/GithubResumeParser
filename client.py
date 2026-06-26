@@ -5,10 +5,17 @@ class ResumeMCPClient:
         pass
 
     def call(self, tool_name: str, payload: dict) -> dict:
+        import os
+        if payload.get("groq_api_key"):
+            os.environ["GROQ_API_KEY"] = payload.get("groq_api_key")
+        if payload.get("gemini_api_key"):
+            os.environ["GEMINI_API_KEY"] = payload.get("gemini_api_key")
+            
         if tool_name == "extract_github_metadata":
             return extract_github_metadata(
                 payload.get("username"),
-                payload.get("github_token")
+                payload.get("github_token"),
+                payload.get("model_choice", "Groq")
             )
             
         if tool_name == "build_repository_profiles":
@@ -30,6 +37,7 @@ class ResumeMCPClient:
             return match_repositories(
                 payload.get("repo_profiles", []),
                 payload.get("jd_profile", {}),
+                payload.get("raw_repos", []),
                 payload.get("model_choice", "Groq")
             )
             

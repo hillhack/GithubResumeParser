@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Dict, Optional, Any
 
 class RepositoryMetadata(BaseModel):
@@ -48,6 +48,26 @@ class RepositoryProfile(BaseModel):
     keywords: List[str] = []
     tags: List[str] = []
     evidence_summary: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def sanitize_data(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            list_fields = [
+                "key_features", "architecture_patterns", "primary_skills", 
+                "secondary_skills", "frameworks", "libraries", "tools", 
+                "programming_languages", "deployment", "database", "cloud", 
+                "ai_models", "apis", "visualization", "keywords", "tags"
+            ]
+            for k, v in data.items():
+                if v is None:
+                    data[k] = [] if k in list_fields else ""
+                elif isinstance(v, str) and k in list_fields:
+                    if v.lower() in ["n/a", "none", "null", "", "false"]:
+                        data[k] = []
+                    else:
+                        data[k] = [v]
+        return data
 
 class Repository(BaseModel):
     metadata: RepositoryMetadata

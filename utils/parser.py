@@ -7,7 +7,9 @@ def extract_json_from_llm(text: str) -> dict:
     
     # Try direct parse first
     try:
-        return json.loads(text)
+        parsed = json.loads(text)
+        if isinstance(parsed, dict): return parsed
+        if isinstance(parsed, list) and len(parsed) > 0 and isinstance(parsed[0], dict): return parsed[0]
     except json.JSONDecodeError:
         pass
         
@@ -15,7 +17,9 @@ def extract_json_from_llm(text: str) -> dict:
     match = re.search(r'```(?:json)?\s*(\{.*\}|\[.*\])\s*```', text, re.DOTALL)
     if match:
         try:
-            return json.loads(match.group(1))
+            parsed = json.loads(match.group(1))
+            if isinstance(parsed, dict): return parsed
+            if isinstance(parsed, list) and len(parsed) > 0 and isinstance(parsed[0], dict): return parsed[0]
         except json.JSONDecodeError:
             pass
             
@@ -24,7 +28,9 @@ def extract_json_from_llm(text: str) -> dict:
     end = text.rfind("}")
     if start != -1 and end != -1 and end > start:
         try:
-            return json.loads(text[start:end+1])
+            parsed = json.loads(text[start:end+1])
+            if isinstance(parsed, dict): return parsed
+            if isinstance(parsed, list) and len(parsed) > 0 and isinstance(parsed[0], dict): return parsed[0]
         except json.JSONDecodeError:
             pass
             
@@ -33,7 +39,8 @@ def extract_json_from_llm(text: str) -> dict:
     end = text.rfind("]")
     if start != -1 and end != -1 and end > start:
         try:
-            return json.loads(text[start:end+1])
+            parsed = json.loads(text[start:end+1])
+            if isinstance(parsed, list) and len(parsed) > 0 and isinstance(parsed[0], dict): return parsed[0]
         except json.JSONDecodeError:
             pass
             

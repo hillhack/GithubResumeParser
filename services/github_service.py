@@ -16,7 +16,10 @@ def extract_profile_and_repos(username: str, token: str = None) -> Tuple[Candida
         avatar=user_data.get("avatar_url"),
         followers=user_data.get("followers", 0),
         following=user_data.get("following", 0),
-        public_repos=user_data.get("public_repos", 0)
+        public_repos=user_data.get("public_repos", 0),
+        github_url=f"https://github.com/{username}",
+        twitter_url=f"https://twitter.com/{user_data.get('twitter_username')}" if user_data.get("twitter_username") else "",
+        organizations=[user_data.get("company")] if user_data.get("company") else []
     )
     
     repos_data = list_user_repos(username, token)

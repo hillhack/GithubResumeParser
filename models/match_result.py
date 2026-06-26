@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import List, Dict
+from pydantic import BaseModel, Field, model_validator
+from typing import List, Dict, Any
 
 class SkillMatch(BaseModel):
     skill: str
@@ -18,6 +18,21 @@ class MatchResult(BaseModel):
     matched_frameworks: List[str] = []
     matched_domain: str = ""
     matched_keywords: List[str] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def sanitize_lists(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if isinstance(v, str) and k in [
+                    "matched_skills", "missing_skills", "matched_libraries",
+                    "matched_frameworks", "matched_keywords"
+                ]:
+                    if v.lower() in ["n/a", "none", "null", "", "false"]:
+                        data[k] = []
+                    else:
+                        data[k] = [v]
+        return data
     evidence: Dict[str, str] = {} # Key: skill/entity, Value: Reason
     confidence: str = ""
 

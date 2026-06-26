@@ -101,12 +101,11 @@ def _preamble(theme_hex: str) -> str:
 % -------------------- CUSTOM COMMANDS --------------------
 \renewcommand{{\labelitemi}}{{\textcolor{{theme}}{{$\bullet$}}}}
 
-% Refined project header with inline tech stack
+% Refined project header
 \newcommand{{\resumeProject}}[4]{{
     \vspace{{5pt}}
-    \noindent\textbf{{#1}} \hfill \href{{#2}}{{\faGithub}} \\
-    \textit{{#3}} \\
-    \textit{{Tech Stack: #4}}
+    \noindent\textbf{{#1}} $|$ \textit{{#4}} \hfill \href{{#2}}{{\faGithub}} \\
+    \vspace{{2pt}}\small\textit{{#3}}
 }}
 
 \newcommand{{\resumeItemListStart}}{{
@@ -184,12 +183,7 @@ def _skills(skills: Dict[str, List[str]]) -> str:
     rows = []
     for cat, items in skills.items():
         if not items: continue
-        
-        if cat == "JD Matched Skills":
-            tags_str = " ".join(f"[{_esc(s)}]" for s in items if s)
-            rows.append(rf"\item \textbf{{Skills:}} {tags_str}")
-        else:
-            rows.append(rf"\item \textbf{{{_esc(cat)}:}} {', '.join(_esc(s) for s in items if s)}")
+        rows.append(rf"\item \textbf{{{_esc(cat)}:}} {', '.join(_esc(s) for s in items if s)}")
             
     rows_str = "\n".join(rows)
     return rf"""

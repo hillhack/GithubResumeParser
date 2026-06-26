@@ -12,9 +12,17 @@ def extract_oss_contributions(username: str, token: str = None, model_choice: st
         
     contributions = []
     
-    for pr in prs[:3]: # Take top 3 recent PRs
+    for pr in prs:
+        if len(contributions) >= 3:
+            break
+            
         repo_url = pr.get("repository_url", "").replace("api.github.com/repos/", "github.com/")
         repo_name = repo_url.split("github.com/")[-1] if "github.com/" in repo_url else "Unknown Repository"
+        
+        # Do not include contributions to the user's own repositories
+        if repo_name.startswith(f"{username}/"):
+            continue
+            
         title = pr.get("title", "")
         body = pr.get("body", "") or "No description provided."
         html_url = pr.get("html_url", "")
@@ -25,21 +33,30 @@ PR Title: {title}
 PR Body:
 {body[:2000]}
 
+Follow these strict rules:
+1. Ignore typo fixes, formatting changes, documentation-only commits, and dependency version bumps. If this PR is trivial, return {{"ignore": true}}.
+2. Only include meaningful code contributions.
+3. Write a single 1-2 line resume-ready description summarizing the technical impact and what was added/fixed. Use action verbs. No bullets!
+4. Extract the technologies used.
+
 Return a JSON object:
 {{
-    "project": "{repo_name}",
+    "ignore": false,
+    "name": "{repo_name}",
     "url": "{html_url}",
-    "contribution": "<A 2-3 line resume-ready bullet summarizing the technical impact and technologies used. Use action verbs.>"
+    "tech_stack": ["<tech1>", "<tech2>"],
+    "desc": "<A strict 1-2 line description>"
 }}
 """
         raw = call_llm("You are an expert technical resume writer. Output ONLY JSON.", prompt, model_choice)
         parsed = extract_json_from_llm(raw)
         
-        if parsed and "contribution" in parsed:
+        if parsed and not parsed.get("ignore", False) and parsed.get("desc"):
             contributions.append({
-                "project": parsed.get("project", repo_name),
+                "name": parsed.get("name", repo_name),
                 "url": parsed.get("url", html_url),
-                "contribution": parsed.get("contribution")
+                "tech_stack": parsed.get("tech_stack", []),
+                "desc": parsed.get("desc", "")
             })
             
     return contributions

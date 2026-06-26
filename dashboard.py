@@ -3,7 +3,10 @@ from dotenv import load_dotenv
 load_dotenv()
 import streamlit as st
 import json
+import base64
 import html as html_lib
+import os
+from mcp import StdioServerParameters
 from client import ResumeMCPClient
 import latex
 import math
@@ -75,11 +78,34 @@ with st.sidebar:
     )
 
     st.markdown("<span class='input-label'>LLM Provider</span>", unsafe_allow_html=True)
+    
+    # We must delay the default selection logic because API keys are now defined below.
+    # Actually, we can just grab them from st.session_state if they exist.
+    default_model_idx = 0
+    if os.environ.get("GEMINI_API_KEY") and not os.environ.get("GROQ_API_KEY"):
+        default_model_idx = 1
+        
     model_choice = st.selectbox(
         "LLM Provider",
         ["Groq (Llama 3.3 70B)", "Google (Gemini 2.5 Flash)"],
-        index=0, label_visibility="collapsed",
+        index=default_model_idx, label_visibility="collapsed",
     )
+    
+    with st.expander("🔑 Custom API Keys", expanded=False):
+        st.markdown("<small>Provide your own keys to bypass default limits.</small>", unsafe_allow_html=True)
+        gh_key = st.text_input("GitHub Token", type="password", help="https://github.com/settings/tokens")
+        groq_key = st.text_input("Groq API Key", type="password", help="https://console.groq.com/keys")
+        gem_key = st.text_input("Gemini API Key", type="password", help="https://aistudio.google.com/app/apikey")
+        
+        if gh_key: os.environ["GITHUB_TOKEN"] = gh_key
+        if groq_key: os.environ["GROQ_API_KEY"] = groq_key
+        if gem_key: os.environ["GEMINI_API_KEY"] = gem_key
+        
+        st.markdown("<small><a href='https://github.com/settings/tokens' target='_blank'>Get GitHub</a> | <a href='https://console.groq.com/keys' target='_blank'>Get Groq</a> | <a href='https://aistudio.google.com/app/apikey' target='_blank'>Get Gemini</a></small>", unsafe_allow_html=True)
+
+    
+    st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+    max_projects = st.slider("Default Projects in Resume", min_value=1, max_value=6, value=3)
 
     st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
     if st.button("🔄 Reset All", use_container_width=True):
@@ -87,6 +113,17 @@ with st.sidebar:
         for k, v in INITIAL_STATE.items():
             st.session_state[k] = v
         st.rerun()
+
+def handle_error(e):
+    import traceback
+    error_msg = str(e)
+    if "tokens per day" in error_msg.lower() or "tpd" in error_msg.lower():
+        import re
+        time_match = re.search(r"Please try again in ([0-9a-z\.]+)", error_msg)
+        time_left = time_match.group(1) if time_match else "24 hours"
+        st.error(f"🚨 **Groq Daily Token Limit Exhausted!**\n\nYour account has reached its 100,000 token limit because Full Analysis scans massive amounts of code.\n\n**How to fix:**\n1. Wait until your quota resets in **{time_left}**.\n2. Create a new Groq API key using a **different Google/GitHub account** and paste it in the Custom API Keys sidebar.\n3. **Switch the LLM Provider to Google Gemini**, which has a much larger free tier!")
+    else:
+        st.error(f"{error_msg}\n\n```\n{traceback.format_exc()}\n```")
 
 # ── Header ───────────────────────────────────────────────────────
 if not st.session_state.match_results:
@@ -110,38 +147,66 @@ if not st.session_state.match_results:
                 st.session_state.username = username
                 try:
                     with st.status("Running Full Analysis...", expanded=True) as status:
-                        st.write("Extracting GitHub Profile & Metadata...")
-                        res = mcp.call("extract_github_metadata", {"username": username})
+                        st.write(f"Extracting GitHub Profile & Metadata with {model_choice}...")
+                        res = mcp.call("extract_github_metadata", {
+                            "username": username, 
+                            "model_choice": model_choice,
+                            "groq_api_key": os.environ.get("GROQ_API_KEY"),
+                            "gemini_api_key": os.environ.get("GEMINI_API_KEY")
+                        })
                         st.session_state.github_metadata = res["dashboard"]
                         st.session_state.raw_repos = res["raw_repos"]
                         
-                        repos_to_scan = [r["metadata"]["name"] for r in st.session_state.raw_repos][:15]
-                        st.write(f"Building Knowledge Base for {len(repos_to_scan)} repositories...")
+                        repos_to_scan = [r["metadata"]["name"] for r in st.session_state.raw_repos]
+                        st.write(f"Building Knowledge Base for {len(repos_to_scan)} repositories with {model_choice}...")
                         profiles = mcp.call("build_repository_profiles", {
                             "username": username,
                             "raw_repos": st.session_state.raw_repos,
                             "selected_repo_names": repos_to_scan,
-                            "model_choice": model_choice
+                            "model_choice": model_choice,
+                            "groq_api_key": os.environ.get("GROQ_API_KEY"),
+                            "gemini_api_key": os.environ.get("GEMINI_API_KEY")
                         })
                         st.session_state.repository_profiles = profiles
                         
-                        st.write("Structuring Job Description...")
+                        st.write(f"Structuring Job Description with {model_choice}...")
                         jd_prof = mcp.call("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
                         st.session_state.jd_profile = jd_prof
                         
-                        st.write("Matching Repositories to Job Description...")
+                        st.write(f"Matching Repositories to Job Description with {model_choice}...")
                         match_res = mcp.call("match_repositories", {
                             "repo_profiles": profiles,
                             "jd_profile": jd_prof,
+                            "raw_repos": st.session_state.raw_repos,
                             "model_choice": model_choice
                         })
                         
                         st.session_state.match_results = match_res["ranked_matches"]
                         st.session_state.overall_skill_gap = match_res["overall_skill_gap"]
-                        status.update(label="✅ Analysis Complete!", state="complete")
+                        
+                        st.write(f"Automatically generating Final Resume from top matches with {model_choice}...")
+                        auto_selected_repos = [m['repository_name'] for m in st.session_state.match_results[:max_projects]]
+                        st.session_state.selected_for_resume = auto_selected_repos
+                        
+                        oss_contribs = mcp.call("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
+                        selected_profiles = [rp for rp in st.session_state.repository_profiles if rp['name'] in auto_selected_repos]
+                        
+                        resume = mcp.call("generate_resume", {
+                            "profile_dict": st.session_state.github_metadata["profile"],
+                            "selected_repo_profiles": selected_profiles,
+                            "jd_profile_dict": st.session_state.jd_profile,
+                            "user_instructions": "Highlight the most relevant technical achievements.",
+                            "model_choice": model_choice,
+                            "oss_contributions": oss_contribs
+                        })
+                        resume["pages"] = pages
+                        st.session_state.resume_content = resume
+                        st.session_state.latex_code = latex.generate_latex(resume, "ATS Classic")
+                        
+                        status.update(label="✅ Full Pipeline Complete!", state="complete")
                     st.rerun()
                 except Exception as e:
-                    st.error(str(e))
+                    handle_error(e)
     
     else:
         # Quick Analysis Flow
@@ -152,19 +217,24 @@ if not st.session_state.match_results:
             if username:
                 try:
                     with st.spinner("Extracting Profile & Repository Metadata..."):
-                        res = mcp.call("extract_github_metadata", {"username": username})
+                        res = mcp.call("extract_github_metadata", {
+                            "username": username, 
+                            "model_choice": model_choice,
+                            "groq_api_key": os.environ.get("GROQ_API_KEY"),
+                            "gemini_api_key": os.environ.get("GEMINI_API_KEY")
+                        })
                         st.session_state.github_metadata = res["dashboard"]
                         st.session_state.raw_repos = res["raw_repos"]
                         st.session_state.username = username
                         st.rerun()
                 except Exception as e:
-                    st.error(str(e))
+                    handle_error(e)
     
         if st.session_state.github_metadata and not st.session_state.repository_profiles:
             meta = st.session_state.github_metadata
             prof = meta["profile"]
             st.markdown(f"## {prof['name'] or prof['username']}")
-            st.markdown("### Select Repositories for Knowledge Extraction")
+            st.markdown("### Select Repositories for Analysis")
             if "quick_selected_repos" not in st.session_state:
                 st.session_state.quick_selected_repos = [r["metadata"]["name"] for r in st.session_state.raw_repos[:5]]
 
@@ -176,7 +246,7 @@ if not st.session_state.match_results:
                 
                 col1, col2 = st.columns([0.05, 0.95])
                 with col1:
-                    is_sel = st.checkbox("", key=f"quick_sel_{repo_name}", value=(repo_name in st.session_state.quick_selected_repos))
+                    is_sel = st.checkbox("Select Repo", key=f"quick_sel_{repo_name}", value=(repo_name in st.session_state.quick_selected_repos), label_visibility="collapsed")
                     if is_sel:
                         selected_repos.append(repo_name)
                 with col2:
@@ -195,7 +265,7 @@ if not st.session_state.match_results:
                 else:
                     try:
                         with st.status("Running Quick Analysis...", expanded=True) as status:
-                            st.write(f"Building Knowledge Base for {len(selected_repos)} repositories...")
+                            st.write(f"Building Knowledge Base for {len(selected_repos)} repositories with {model_choice}...")
                             profiles = mcp.call("build_repository_profiles", {
                                 "username": st.session_state.username,
                                 "raw_repos": st.session_state.raw_repos,
@@ -204,14 +274,15 @@ if not st.session_state.match_results:
                             })
                             st.session_state.repository_profiles = profiles
                             
-                            st.write("Structuring Job Description...")
+                            st.write(f"Structuring Job Description with {model_choice}...")
                             jd_prof = mcp.call("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
                             st.session_state.jd_profile = jd_prof
                             
-                            st.write("Matching Repositories to Job Description...")
+                            st.write(f"Matching Repositories to Job Description with {model_choice}...")
                             match_res = mcp.call("match_repositories", {
                                 "repo_profiles": profiles,
                                 "jd_profile": jd_prof,
+                                "raw_repos": st.session_state.raw_repos,
                                 "model_choice": model_choice
                             })
                             
@@ -220,114 +291,129 @@ if not st.session_state.match_results:
                             status.update(label="✅ Analysis Complete!", state="complete")
                         st.rerun()
                     except Exception as e:
-                        st.error(str(e))
+                        handle_error(e)
 
 # --- Full Application View ---
 if st.session_state.match_results:
-    tab_resume, tab_projects, tab_gap, tab_explorer, tab_latex = st.tabs([
-        "📄 Resume", "📂 Projects", "🎯 Skill Gap", "🔍 Repository Explorer", "📜 LaTeX"
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📄 Resume", "📂 Projects", "🎯 Skill Gap", "📜 LaTeX"
     ])
 
     # --- 1. RESUME TAB ---
-    with tab_resume:
-        st.markdown("### Select Projects for Resume")
-        
-        # We need a form or states to hold selected repos
-        if "selected_for_resume" not in st.session_state:
-            st.session_state.selected_for_resume = [m['repository_name'] for m in st.session_state.match_results[:3]]
+    with tab1:
+        if "Full Analysis" in st.session_state.analysis_mode:
+            st.success("Resume automatically generated from the top matched repositories.")
             
-        selected_repos = []
-        for mr in st.session_state.match_results:
-            repo_name = mr['repository_name']
-            meta = get_repo_meta(repo_name)
-            prof = get_repo_profile(repo_name)
+        else:
+            st.markdown("### Select Projects for Resume")
             
-            col1, col2 = st.columns([0.05, 0.95])
-            with col1:
-                is_sel = st.checkbox("", key=f"res_sel_{repo_name}", value=(repo_name in st.session_state.selected_for_resume))
-                if is_sel:
-                    selected_repos.append(repo_name)
-            with col2:
-                stars = meta.get('stars', 0)
-                score = int(mr['overall_score'] * 100)
-                desc = prof.get('one_line_summary', '')
-                matched_set = {x.lower() for x in mr.get('matched_skills', [])}
-                skills_html = ""
-                for s in prof.get('primary_skills', [])[:5]:
-                    if s.lower() in matched_set:
-                        skills_html += f"<span class='badge-matched' style='margin: 0 2px 2px 0; padding: 2px 6px; font-size: 0.75rem; display: inline-block;'>{html_lib.escape(s)}</span>"
-                    else:
-                        skills_html += f"<span class='tag'>{html_lib.escape(s)}</span>"
+            # We need a form or states to hold selected repos
+            if "selected_for_resume" not in st.session_state:
+                st.session_state.selected_for_resume = [m['repository_name'] for m in st.session_state.match_results[:max_projects]]
                 
-                card_html = f"""
-                <div class='proj-card' style='margin-bottom: 5px; padding: 0.8rem 1rem;'>
-                    <div class='proj-header'>
-                        <strong style='font-size:1.1rem; color:#E6EDF3;'>{html_lib.escape(repo_name)}</strong>
-                        <div>
-                            <span class='proj-stars'>⭐ {stars}</span>
-                            <span class='proj-match'>⚡ {score}% Match</span>
-                        </div>
-                    </div>
-                    <div style='color:#8B949E; font-size:0.85rem; margin-bottom:6px;'>{html_lib.escape(desc)}</div>
-                    <div>{skills_html}</div>
-                </div>
-                """
-                st.markdown(card_html, unsafe_allow_html=True)
+            selected_repos = []
+            for mr in st.session_state.match_results:
+                repo_name = mr['repository_name']
+                meta = get_repo_meta(repo_name)
+                prof = get_repo_profile(repo_name)
                 
-        st.markdown("### Generate")
-        instructions = st.text_area("Custom Instructions (Optional)", placeholder="e.g. Focus on backend...")
-        include_oss = st.checkbox("Include Open Source Contributions (excluding your own repos)", value=True)
-        
-        if st.button("Generate Final Resume", type="primary"):
-            st.session_state.selected_for_resume = selected_repos
-            oss_contribs = []
-            if include_oss:
-                with st.spinner("Analyzing your external PRs for OSS Contributions..."):
-                    oss_contribs = mcp.call("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
+                col1, col2 = st.columns([0.05, 0.95])
+                with col1:
+                    is_sel = st.checkbox("Select Project", key=f"res_sel_{repo_name}", value=(repo_name in st.session_state.selected_for_resume), label_visibility="collapsed")
+                    if is_sel:
+                        selected_repos.append(repo_name)
+                with col2:
+                    stars = meta.get('stars', 0)
+                    score = int(mr['overall_score'] * 100)
+                    desc = prof.get('one_line_summary', '')
+                    matched_set = {x.lower() for x in mr.get('matched_skills', [])}
+                    skills_html = ""
+                    for s in prof.get('primary_skills', [])[:5]:
+                        if s.lower() in matched_set:
+                            skills_html += f"<span class='badge-matched' style='margin: 0 2px 2px 0; padding: 2px 6px; font-size: 0.75rem; display: inline-block;'>{html_lib.escape(s)}</span>"
+                        else:
+                            skills_html += f"<span class='tag'>{html_lib.escape(s)}</span>"
                     
-            with st.spinner("Generating Resume Content..."):
-                selected_profiles = [rp for rp in st.session_state.repository_profiles if rp['name'] in selected_repos]
-                
-                resume = mcp.call("generate_resume", {
-                    "profile_dict": st.session_state.github_metadata["profile"],
-                    "selected_repo_profiles": selected_profiles,
-                    "jd_profile_dict": st.session_state.jd_profile,
-                    "user_instructions": instructions,
-                    "model_choice": model_choice,
-                    "oss_contributions": oss_contribs
-                })
-                resume["pages"] = pages
-                
-                st.session_state.resume_content = resume
-                st.session_state.latex_code = latex.generate_latex(resume, "ATS Classic")
-                
+                    card_html = f"""
+                    <div class='proj-card' style='margin-bottom: 5px; padding: 0.8rem 1rem;'>
+                        <div class='proj-header'>
+                            <strong style='font-size:1.1rem; color:#E6EDF3;'>{html_lib.escape(repo_name)}</strong>
+                            <div>
+                                <span class='proj-stars'>⭐ {stars}</span>
+                                <span class='proj-match'>⚡ {score}% Match</span>
+                            </div>
+                        </div>
+                        <div style='color:#8B949E; font-size:0.85rem; margin-bottom:6px;'>{html_lib.escape(desc)}</div>
+                        <div>{skills_html}</div>
+                    </div>
+                    """
+                    st.markdown(card_html, unsafe_allow_html=True)
+                    
+            st.markdown("### Generate")
+            instructions = st.text_area("Custom Instructions (Optional)", placeholder="e.g. Focus on backend...")
+            include_oss = st.checkbox("Include Open Source Contributions (excluding your own repos)", value=True)
+            
+            if st.button("Generate Final Resume", type="primary"):
+                st.session_state.selected_for_resume = selected_repos
+                oss_contribs = []
+                if include_oss:
+                    with st.spinner("Analyzing your external PRs for OSS Contributions..."):
+                        oss_contribs = mcp.call("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
+                        
+                with st.spinner("Generating Resume Content..."):
+                    selected_profiles = [rp for rp in st.session_state.repository_profiles if rp['name'] in selected_repos]
+                    
+                    resume = mcp.call("generate_resume", {
+                        "profile_dict": st.session_state.github_metadata["profile"],
+                        "selected_repo_profiles": selected_profiles,
+                        "jd_profile_dict": st.session_state.jd_profile,
+                        "user_instructions": instructions,
+                        "model_choice": model_choice,
+                        "oss_contributions": oss_contribs
+                    })
+                    resume["pages"] = pages
+                    
+                    st.session_state.resume_content = resume
+                    st.session_state.latex_code = latex.generate_latex(resume, "ATS Classic")
+                    
         if st.session_state.resume_content:
             data = st.session_state.resume_content
             st.markdown("## Final Resume Preview")
             
             html = "<div class='resume-preview'>"
             html += f"<div class='resume-name'>{data['profile']['name']}</div>"
-            html += f"<div class='resume-contact'>{data['profile']['email']} • {data['profile']['html_url']}</div>"
+            
+            contact_items = []
+            if data['profile'].get('email'): contact_items.append(data['profile']['email'])
+            if data['profile'].get('github_url'): contact_items.append(data['profile']['github_url'])
+            if data['profile'].get('linkedin_url'): contact_items.append(data['profile']['linkedin_url'])
+            if data['profile'].get('website') and data['profile'].get('website') not in contact_items: contact_items.append(data['profile']['website'])
+            
+            html += f"<div class='resume-contact'>{' • '.join(contact_items)}</div>"
             html += f"<div class='resume-section-title'>Summary</div><div style='margin-bottom:8px'>{data.get('summary', '')}</div>"
             
             html += "<div class='resume-section-title'>Projects</div>"
             for proj in data.get("projects", []):
-                html += f"<div style='font-weight:bold;'>{proj['name']}</div>"
-                html += f"<div style='font-style:italic;'>{proj['one_liner']}</div>"
+                tech_stack = ", ".join(proj.get("tech_stack", []))
+                tech_str = f" | <i>{tech_stack}</i>" if tech_stack else ""
+                html += f"<div style='font-weight:bold;'>{proj['name']}{tech_str}</div>"
+                html += f"<div style='font-style:italic; margin-bottom: 4px; font-size: 0.9em;'>{proj['one_liner']}</div>"
                 for bullet in proj.get("bullets", []):
                     html += f"<div style='margin-left:12px'>• {bullet}</div>"
             
             if data.get("contributions"):
                 html += "<div class='resume-section-title'>Open Source Contributions</div>"
                 for oss in data["contributions"]:
-                    html += f"<div style='font-weight:bold;'>{oss['project']}</div>"
-                    html += f"<div style='margin-left:12px'>• {oss['contribution']}</div>"
+                    tech_stack = ", ".join(oss.get("tech_stack", []))
+                    tech_str = f" | <i>{tech_stack}</i>" if tech_stack else ""
+                    html += f"<div style='font-weight:bold;'>{oss.get('name', 'Repository')}{tech_str}</div>"
+                    html += f"<div style='font-style:italic; margin-bottom:2px; font-size: 0.9em;'>{oss.get('desc', '')}</div>"
                     
             html += "</div>"
             st.markdown(html, unsafe_allow_html=True)
 
     # --- 2. PROJECTS TAB ---
-    with tab_projects:
+    with tab2:
         total_analysed = len(st.session_state.match_results)
         top_match = max([m['overall_score'] for m in st.session_state.match_results]) * 100 if total_analysed else 0
         avg_match = sum([m['overall_score'] for m in st.session_state.match_results]) / total_analysed * 100 if total_analysed else 0
@@ -360,27 +446,8 @@ if st.session_state.match_results:
         
         st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
         
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            sort_by = st.selectbox("Sort By", ["JD Match", "Stars", "Recently Updated", "Alphabetical"])
-        with col2:
-            all_domains = list(set([rp['domain'] for rp in st.session_state.repository_profiles if rp.get('domain')]))
-            domain_filter = st.multiselect("Filter by Domain", all_domains)
-            
-        # Apply sorting and filtering
         display_results = st.session_state.match_results.copy()
-        
-        if domain_filter:
-            display_results = [m for m in display_results if get_repo_profile(m['repository_name']).get('domain') in domain_filter]
-            
-        if sort_by == "Stars":
-            display_results = sorted(display_results, key=lambda x: get_repo_meta(x['repository_name']).get('stars', 0), reverse=True)
-        elif sort_by == "Alphabetical":
-            display_results = sorted(display_results, key=lambda x: x['repository_name'].lower())
-        elif sort_by == "Recently Updated":
-            display_results = sorted(display_results, key=lambda x: get_repo_meta(x['repository_name']).get('updated_date', ''), reverse=True)
-        else:
-            display_results = sorted(display_results, key=lambda x: x['overall_score'], reverse=True)
+        display_results = sorted(display_results, key=lambda x: x['overall_score'], reverse=True)
             
         for idx, mr in enumerate(display_results):
             repo_name = mr['repository_name']
@@ -392,14 +459,20 @@ if st.session_state.match_results:
             stars = meta.get('stars', 0)
             desc = prof.get('one_line_summary', '')
             
-            # Sub-scores Mock / Calculation
-            req_skills = len(jd['required_skills']) if jd.get('required_skills') else 1
-            skill_match = min(100, int(len(mr['matched_skills']) / req_skills * 100))
+            # Calculate accurate sub-scores based on LLM extraction
+            total_skills = len(mr.get('matched_skills', [])) + len(mr.get('missing_skills', []))
+            skill_match = min(100, int(len(mr.get('matched_skills', [])) / max(1, total_skills) * 100))
             
-            tech_len = len(jd.get('tools', []) + jd.get('frameworks', []) + jd.get('libraries', [])) or 1
-            tech_match = min(100, int(len(mr['matched_libraries'] + mr['matched_frameworks']) / tech_len * 100))
+            jd_tech = jd.get('tools', []) + jd.get('frameworks', []) + jd.get('libraries', [])
+            repo_tech = mr.get('matched_libraries', []) + mr.get('matched_frameworks', [])
+            if jd_tech:
+                tech_match = min(100, int(len(repo_tech) / len(jd_tech) * 100))
+            else:
+                tech_match = 100 if repo_tech else 0
+                
+            domain_str = mr.get('matched_domain', '')
+            domain_match = 100 if prof.get('domain', '').lower() in jd.get('domain', '').lower() or domain_str else 50
             
-            domain_match = 90 if prof.get('domain', '').lower() == jd.get('domain', '').lower() else 50
             keyword_match = min(100, int(len(mr.get('matched_keywords', [])) / max(1, len(jd.get('keywords', []))) * 100))
             
             matched_set = {x.lower() for x in mr.get('matched_skills', [])}
@@ -467,7 +540,7 @@ if st.session_state.match_results:
                         st.markdown(f"✅ **{k}**: {v}")
 
     # --- 3. SKILL GAP TAB ---
-    with tab_gap:
+    with tab3:
         gap = st.session_state.overall_skill_gap
         
         st.markdown("### Overall Matched Skills")
@@ -492,17 +565,8 @@ if st.session_state.match_results:
             </div>
             """, unsafe_allow_html=True)
 
-    # --- 4. REPOSITORY EXPLORER ---
-    with tab_explorer:
-        st.markdown("### Raw Knowledge Base")
-        st.markdown("This shows the raw AI-extracted intelligence for each repository independent of any Job Description.")
-        
-        for rp in st.session_state.repository_profiles:
-            with st.expander(f"📦 {rp['name']} - {rp.get('domain', 'Unknown Domain')}"):
-                st.json(rp)
-
-    # --- 5. LATEX ---
-    with tab_latex:
+    # --- 4. LATEX SOURCE ---
+    with tab4:
         if st.session_state.latex_code:
             st.code(st.session_state.latex_code, language="latex")
             st.download_button(

@@ -5,8 +5,8 @@ from services.llm_service import call_llm
 from utils.parser import extract_json_from_llm
 import json
 
-def match_repository_to_jd(repo_profile: RepositoryProfile, jd_profile: JobDescriptionProfile, model_choice: str = "Groq") -> MatchResult:
-    """Matches a structured RepositoryProfile against a structured JobDescriptionProfile using an LLM."""
+def match_repository_to_jd(repo_profile: RepositoryProfile, jd_profile: JobDescriptionProfile, readme_text: str = "", model_choice: str = "Groq") -> MatchResult:
+    """Matches a structured RepositoryProfile against a structured JobDescriptionProfile using an LLM, verifying missing skills against the README."""
     
     prompt = f"""Compare the Candidate's Repository Profile against the Job Description Profile.
 
@@ -21,6 +21,12 @@ Compare the extracted repository profile against BOTH the "Required Skills" and 
 Provide an overall score between 0.0 and 1.0 (where 1.0 means the repo perfectly demonstrates the core required skills).
 Extract which specific skills from the JD are matched by this repo, and which are missing.
 Provide brief evidence sentences for the matches based on the repository data.
+
+CRITICAL: Before finalizing the `missing_skills` array, you MUST verify if the skill is mentioned anywhere in the README snippet. Do NOT list a skill as missing if it exists in the README!
+
+=== README Snippet ===
+{(readme_text or "No README provided")[:3000]}
+======================
 
 Return ONLY a JSON object:
 {{

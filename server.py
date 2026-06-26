@@ -15,17 +15,27 @@ from services.matcher_service import match_repository_to_jd
 from services.ranking_service import rank_matches, compute_overall_skill_gap
 from services.resume_service import generate_resume_content
 from services.contribution_service import extract_oss_contributions
+from services.candidate_service import analyze_candidate_profile
 
 log = logging.getLogger(__name__)
 
-def extract_github_metadata(username: str, token: str = None) -> dict:
-    """Step 1: Extract basic profile and lightweight repository metadata."""
+def extract_github_metadata(username: str, token: str = None, model_choice: str = "Groq") -> dict:
+    """Step 1: Extract basic profile and full repository list."""
     profile, repos = extract_profile_and_repos(username, token)
     
-    # Just simple stats for the CandidateDashboardData
-    langs = {}
-    top_repos = []
+    # Run deep LLM analysis on the profile using the raw repos
+    raw_repos_dicts = [r.model_dump() for r in repos]
+    profile = analyze_candidate_profile(profile, raw_repos_dicts, model_choice)
     
+    # For initial dashboard load
+    top_langs = {}
+    for r in repos:
+        lang = r.metadata.default_language
+        if lang:
+            top_langs[lang] = top_langs.get(lang, 0) + 1 
+            
+    top_repos = []
+    langs = {}
     for r in sorted(repos, key=lambda x: x.metadata.stars, reverse=True):
         top_repos.append(r.metadata.name)
         if r.metadata.default_language:
@@ -68,14 +78,21 @@ def analyze_jd(jd_text: str, model_choice: str = "Groq") -> dict:
     profile = analyze_job_description(jd_text, model_choice)
     return profile.model_dump()
 
-def match_repositories(repo_profiles: list, jd_profile: dict, model_choice: str = "Groq") -> dict:
+def match_repositories(repo_profiles: list, jd_profile: dict, raw_repos: list = None, model_choice: str = "Groq") -> dict:
     """Step 5: Matching."""
     jd = JobDescriptionProfile(**jd_profile)
     
     matches = []
     for raw_prof in repo_profiles:
         repo_prof = RepositoryProfile(**raw_prof)
-        match_res = match_repository_to_jd(repo_prof, jd, model_choice)
+        readme_text = ""
+        if raw_repos:
+            for r in raw_repos:
+                if r.get("metadata", {}).get("name") == repo_prof.name:
+                    readme_text = r.get("files", {}).get("readme", "")
+                    break
+                    
+        match_res = match_repository_to_jd(repo_prof, jd, readme_text, model_choice)
         matches.append(match_res)
         
     ranked = rank_matches(matches)
