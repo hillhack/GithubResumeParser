@@ -1,0 +1,321 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Global overrides */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+    background: #0D1117;
+    color: #E6EDF3;
+}
+
+/* ── Fixed topbar via native Streamlit header ── */
+header[data-testid="stHeader"] {
+    background: #0D1117 !important;
+    border-bottom: 1px solid #30363D !important;
+    height: 3.5rem !important;
+    min-height: 3.5rem !important;
+    z-index: 1000 !important;
+}
+/* BIG BOLD brand name — flat purple so ✅ emoji stays visible */
+header[data-testid="stHeader"]::before {
+    content: ' ✅  Alldone';
+    font-family: 'Inter', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #A78BFA;
+    letter-spacing: -0.5px;
+    position: absolute;
+    top: 50%;
+    left: 4rem; /* leave room for the sidebar button at the far left */
+    transform: translateY(-50%);
+}
+/* small italic tagline */
+header[data-testid="stHeader"]::after {
+    content: 'GitHub to Job-Ready Resume';
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 400;
+    font-style: italic;
+    color: #8B949E;
+    position: absolute;
+    top: 50%;
+    left: 14rem;
+    transform: translateY(-50%);
+}
+
+/* Hide only the hamburger menu button — keep toolbar visible for the sidebar close button */
+button[data-testid="stToolbarHamburger"] { display: none !important; }
+
+/* Make the toolbar transparent so it doesn't clash with the brand text */
+[data-testid="stToolbar"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Sidebar background */
+[data-testid="stSidebar"] {
+    background: #161B22;
+    border-right: 1px solid #30363D;
+}
+/* ── Sidebar open (>) and close (X) toggle buttons ── */
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapseButton"] {
+    z-index: 10000 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    background: rgba(124, 58, 237, 0.25) !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(124, 58, 237, 0.5) !important;
+    transition: background 0.2s ease !important;
+}
+[data-testid="stSidebarCollapsedControl"]:hover,
+[data-testid="stSidebarCollapseButton"]:hover {
+    background: rgba(124, 58, 237, 0.5) !important;
+}
+[data-testid="stSidebarCollapsedControl"] svg,
+[data-testid="stSidebarCollapseButton"] svg {
+    color: #FFFFFF !important;
+    fill: #FFFFFF !important;
+    stroke: #FFFFFF !important;
+}
+
+/* Input card styling */
+.input-card {
+    background: #161B22;
+    border: 1px solid #30363D;
+    border-radius: 16px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1rem;
+}
+.input-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #8B949E;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.4rem;
+    display: block;
+}
+
+/* Metrics bar */
+.metrics-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+.metric-card {
+    background: #161B22;
+    border: 1px solid #30363D;
+    border-radius: 14px;
+    padding: 1.2rem 1rem;
+    text-align: center;
+}
+.metric-value {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #7C3AED, #06B6D4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.metric-label {
+    font-size: 0.78rem;
+    color: #8B949E;
+    margin-top: 4px;
+}
+
+/* Score row */
+.score-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.score-card {
+    flex: 1;
+    min-width: 120px;
+    background: #161B22;
+    border: 1px solid #30363D;
+    border-radius: 14px;
+    padding: 1rem;
+    text-align: center;
+}
+.score-num {
+    font-size: 2.4rem;
+    font-weight: 800;
+    line-height: 1;
+}
+.score-num.green  { color: #3FB950; }
+.score-num.cyan   { color: #06B6D4; }
+.score-num.red    { color: #F85149; }
+.score-num.purple { color: #A78BFA; }
+.score-sub {
+    font-size: 0.75rem;
+    color: #8B949E;
+    margin-top: 4px;
+}
+
+/* Resume preview (white card) */
+.resume-preview {
+    background: #FFFFFF;
+    color: #111111;
+    border-radius: 12px;
+    padding: 2.5rem 3rem;
+    margin: 0 auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+.resume-name {
+    font-size: 2rem;
+    font-weight: 700;
+}
+.resume-contact {
+    color: #555;
+    margin-bottom: 14px;
+}
+.resume-section-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #4F46E5;
+    border-bottom: 2px solid #4F46E5;
+    margin: 20px 0 8px;
+}
+
+/* Project cards in tab */
+.proj-card {
+    background: #161B22;
+    border: 1px solid #30363D;
+    border-radius: 14px;
+    padding: 1.2rem 1.4rem;
+    margin-bottom: 0.85rem;
+    transition: border-color 0.2s;
+}
+.proj-rank {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #8B949E;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.3rem;
+}
+.proj-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.3rem;
+}
+.proj-stars {
+    font-size: 0.8rem;
+    color: #E3B341;
+    background: rgba(227,179,65,0.08);
+    border: 1px solid rgba(227,179,65,0.2);
+    padding: 2px 10px;
+    border-radius: 20px;
+}
+.proj-match {
+    background: rgba(124,58,237,0.15);
+    color: #A78BFA;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+}
+.tag {
+    display: inline-block;
+    background: #21262D;
+    border: 1px solid #30363D;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    margin: 2px 2px 0 0;
+    color: #8B949E;
+}
+
+/* Skill badges */
+.badge-matched {
+    display: inline-block;
+    background: #1A3A2A;
+    border: 1px solid #3FB950;
+    border-radius: 8px;
+    padding: 3px 10px;
+    color: #3FB950;
+    margin: 3px;
+    font-size: 0.8rem;
+}
+.badge-missing {
+    display: inline-block;
+    background: #3A1A1A;
+    border: 1px solid #F85149;
+    border-radius: 8px;
+    padding: 3px 10px;
+    color: #F85149;
+    margin: 3px;
+    font-size: 0.8rem;
+}
+.learn-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #161B22;
+    border: 1px solid #30363D;
+    border-radius: 10px;
+    padding: 0.7rem 1rem;
+    margin-bottom: 0.5rem;
+}
+.learn-skill {
+    font-weight: 600;
+    color: #F85149;
+    min-width: 130px;
+}
+.learn-arrow {
+    color: #8B949E;
+}
+.learn-tip {
+    color: #8B949E;
+    font-size: 0.85rem;
+}
+
+/* Buttons */
+div[data-testid="stButton"] > button {
+    background: linear-gradient(135deg, #7C3AED, #4F46E5);
+    color: white;
+    border: none;
+    font-weight: 700;
+    width: 100%;
+    border-radius: 10px;
+    font-size: 1rem;
+    padding: 0.65rem;
+    transition: opacity 0.2s;
+    box-shadow: 0 2px 8px rgba(124,58,237,0.3);
+}
+div[data-testid="stButton"] > button:hover {
+    opacity: 0.9;
+}
+
+/* Section divider */
+.section-divider {
+    height: 1px;
+    background: #21262D;
+    margin: 1.5rem 0;
+}
+
+/* Spinner overrides */
+.stSpinner > div {
+    border-color: #A78BFA transparent transparent transparent !important;
+}
+/* Style multiselect dropdown */
+div[data-baseweb="select"] {
+    background: #161B22;
+    border: 1px solid #30363D !important;
+    border-radius: 10px !important;
+}
+div[data-baseweb="select"] * {
+    font-family: 'Inter', sans-serif !important;
+    color: #E6EDF3 !important;
+}
+div[data-baseweb="popover"] {
+    background: #161B22 !important;
+    border: 1px solid #30363D !important;
+}
+</style>

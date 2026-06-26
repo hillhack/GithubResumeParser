@@ -1,31 +1,53 @@
-import asyncio
-import json
-import os
-import sys
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from server import extract_github_metadata, build_repository_profiles, analyze_jd, match_repositories, generate_resume, extract_oss
 
 class ResumeMCPClient:
-    """Synchronous wrapper for MCP client to be used safely inside Streamlit."""
-    
     def __init__(self):
-        server_path = os.path.join(os.path.dirname(__file__), "server.py")
-        self.server_params = StdioServerParameters(
-            command=sys.executable,
-            args=[server_path],
-            env=os.environ.copy()
-        )
+        pass
 
-    async def _call_tool(self, name: str, args: dict) -> str:
-        async with stdio_client(self.server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                result = await session.call_tool(name, arguments=args)
-                if result.isError:
-                    raise Exception(result.content[0].text)
-                return result.content[0].text
-
-    def call(self, name: str, args: dict) -> dict:
-        """Calls an MCP tool synchronously and returns parsed JSON."""
-        result_str = asyncio.run(self._call_tool(name, args))
-        return json.loads(result_str)
+    def call(self, tool_name: str, payload: dict) -> dict:
+        if tool_name == "extract_github_metadata":
+            return extract_github_metadata(
+                payload.get("username"),
+                payload.get("github_token")
+            )
+            
+        if tool_name == "build_repository_profiles":
+            return build_repository_profiles(
+                payload.get("username"),
+                payload.get("raw_repos", []),
+                payload.get("selected_repo_names", []),
+                payload.get("model_choice", "Groq"),
+                payload.get("github_token")
+            )
+            
+        if tool_name == "analyze_jd":
+            return analyze_jd(
+                payload.get("jd_text", ""),
+                payload.get("model_choice", "Groq")
+            )
+            
+        if tool_name == "match_repositories":
+            return match_repositories(
+                payload.get("repo_profiles", []),
+                payload.get("jd_profile", {}),
+                payload.get("model_choice", "Groq")
+            )
+            
+        if tool_name == "extract_oss":
+            return extract_oss(
+                payload.get("username"),
+                payload.get("model_choice", "Groq"),
+                payload.get("github_token")
+            )
+            
+        if tool_name == "generate_resume":
+            return generate_resume(
+                payload.get("profile_dict", {}),
+                payload.get("selected_repo_profiles", []),
+                payload.get("jd_profile_dict", {}),
+                payload.get("user_instructions", ""),
+                payload.get("model_choice", "Groq"),
+                payload.get("oss_contributions", [])
+            )
+            
+        raise ValueError(f"Unsupported tool: {tool_name}")

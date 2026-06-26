@@ -1,0 +1,58 @@
+import os
+import logging
+import time
+
+log = logging.getLogger(__name__)
+
+def call_llm(sys_prompt: str, user_prompt: str, model_choice: str = "Groq", temperature: float = 0.1) -> str:
+    """Dispatches request to appropriate LLM API. Retries on 429 rate-limit errors."""
+    max_retries = 3
+    base_wait = 15  # seconds
+
+    if "Groq" in model_choice:
+        from groq import Groq
+        import groq as groq_module
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        for attempt in range(max_retries):
+            try:
+                resp = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_prompt}],
+                    temperature=temperature, response_format={"type": "json_object"}
+                )
+                return resp.choices[0].message.content or "{}"
+            except groq_module.RateLimitError as e:
+                err_str = str(e)
+                is_daily_limit = ("tokens per day" in err_str or "TPD" in err_str or "per_day" in err_str)
+                if is_daily_limit:
+                    log.error(f"Groq DAILY token limit exhausted. Will use keyword fallback. {e}")
+                    raise
+                if attempt < max_retries - 1:
+                    wait = base_wait * (2 ** attempt)
+                    log.warning(f"Groq 429 rate limit — waiting {wait}s before retry {attempt+1}/{max_retries-1}")
+                    time.sleep(wait)
+                else:
+                    log.error(f"Groq rate limit exhausted after {max_retries} attempts: {e}")
+                    raise
+            except (groq_module.InternalServerError, groq_module.APIStatusError) as e:
+                if attempt < max_retries - 1:
+                    wait = base_wait * (2 ** attempt)
+                    log.warning(f"Groq 503/API error — waiting {wait}s before retry {attempt+1}/{max_retries-1}: {e}")
+                    time.sleep(wait)
+                else:
+                    log.error(f"Groq API error exhausted after {max_retries} attempts: {e}")
+                    raise
+    else:
+        from google import genai
+        from google.genai import types
+        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=f"System Instruction: {sys_prompt}\n\nUser Request: {user_prompt}",
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=temperature,
+            ),
+        )
+        return response.text or "{}"
+    return "{}"
