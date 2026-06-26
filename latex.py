@@ -104,9 +104,9 @@ def _preamble(theme_hex: str) -> str:
 % Refined project header with inline tech stack
 \newcommand{{\resumeProject}}[4]{{
     \vspace{{5pt}}
-    \noindent\href{{#2}}{{\textbf{{#1}}}} \hfill \href{{#2}}{{\faGithub}} \\
+    \noindent\textbf{{#1}} \hfill \href{{#2}}{{\faGithub}} \\
     \textit{{#3}} \\
-    \textbf{{Tech Stack:}} #4
+    \textit{{Tech Stack: #4}}
 }}
 
 \newcommand{{\resumeItemListStart}}{{

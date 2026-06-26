@@ -95,6 +95,13 @@ Return ONLY JSON: {{"summary": "<3-4 sentences ATS-friendly>"}}"""
         matched_skills = list(candidate_skills)[:15]
         
     skills_dict = {"JD Matched Skills": matched_skills}
+    
+    # Restore Categorized Skills from Profile
+    if profile.programming_languages: skills_dict["Languages"] = profile.programming_languages
+    if profile.frameworks: skills_dict["Technologies"] = profile.frameworks
+    if profile.tools_and_platforms: skills_dict["Tools"] = profile.tools_and_platforms
+    if profile.databases: skills_dict["Databases"] = profile.databases
+    if profile.cloud_technologies: skills_dict["Cloud"] = profile.cloud_technologies
 
     return {
         "profile": {
