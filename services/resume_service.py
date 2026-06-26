@@ -26,9 +26,11 @@ Domain: {jd_profile.domain}
 Candidate Project Profile:
 {repo.model_dump_json()}
 
-Write 3-4 professional, impact-driven action-verb sentences for a resume. Highlight the skills and technologies that match the target role.
-CRITICAL: You MUST NOT invent, fabricate, or add any technologies, skills, or features that are not explicitly present in the Candidate Project Profile. Rely ONLY on the provided profile.
-Also provide a 1-sentence one_liner.
+Follow these strict rules:
+1. Write exactly 3-4 concise bullets focusing on what was built, tech used, problem solved, and measurable impact.
+2. Provide a 1-sentence one_liner (max 20-30 words) explaining what the project does. Do not repeat the same info from bullets.
+3. Extract the tech stack (languages, frameworks, DBs, cloud, APIs).
+CRITICAL: You MUST NOT invent, fabricate, or add any technologies, skills, or features that are not explicitly present in the Candidate Project Profile.
 
 Return ONLY JSON:
 {{
@@ -49,24 +51,50 @@ Return ONLY JSON:
         })
 
     # Generate Professional Summary
-    sum_prompt = f"""Write a 2-3 sentence professional summary for a resume.
+    sum_prompt = f"""Write a concise (3-4 lines) ATS-friendly professional summary.
+Avoid generic statements (Highly motivated, Passionate). Describe experience areas, technical strengths, system types, and specialization.
 Candidate: {profile.name or profile.username}
+Bio: {profile.bio}
+Domains: {profile.primary_domains}
 Role: {jd_profile.role}
 Top Projects: {[p['name'] for p in projects]}
 
-Return JSON: {{"summary": "<2-3 sentences>"}}"""
+Return ONLY JSON: {{"summary": "<3-4 sentences ATS-friendly>"}}"""
     
     raw = call_llm("Return ONLY JSON.", sum_prompt, model_choice)
     summary = extract_json_from_llm(raw).get("summary", "")
 
-    # Aggregate skills
-    all_skills = set()
+    # Extract JD skills
+    jd_skills = set(s.lower() for s in jd_profile.required_skills + jd_profile.preferred_skills)
+    
+    # Extract candidate skills
+    candidate_skills = set()
+    if profile.programming_languages: candidate_skills.update(profile.programming_languages)
+    if profile.frameworks: candidate_skills.update(profile.frameworks)
+    if profile.tools_and_platforms: candidate_skills.update(profile.tools_and_platforms)
+    if profile.databases: candidate_skills.update(profile.databases)
+    if profile.cloud_technologies: candidate_skills.update(profile.cloud_technologies)
+    if profile.ai_ml_technologies: candidate_skills.update(profile.ai_ml_technologies)
+    if profile.other_skills: candidate_skills.update(profile.other_skills)
+    
     for repo in selected_repos:
-        all_skills.update(repo.primary_skills)
-        all_skills.update(repo.frameworks)
-        all_skills.update(repo.libraries)
-        all_skills.update(repo.tools)
-        all_skills.update(repo.programming_languages)
+        candidate_skills.update(repo.primary_skills)
+        candidate_skills.update(repo.frameworks)
+        candidate_skills.update(repo.libraries)
+        candidate_skills.update(repo.tools)
+        candidate_skills.update(repo.programming_languages)
+        
+    # Deterministic matching
+    matched_skills = []
+    for skill in candidate_skills:
+        if skill.lower() in jd_skills:
+            matched_skills.append(skill)
+            
+    # Fallback to top candidate skills if no match
+    if not matched_skills:
+        matched_skills = list(candidate_skills)[:15]
+        
+    skills_dict = {"JD Matched Skills": matched_skills}
 
     return {
         "profile": {
@@ -74,16 +102,17 @@ Return JSON: {{"summary": "<2-3 sentences>"}}"""
             "name": profile.name or profile.username,
             "email": profile.email,
             "location": profile.location,
-            "html_url": f"https://github.com/{profile.username}",
-            "blog": profile.website,
+            "github_url": profile.github_url or f"https://github.com/{profile.username}",
+            "linkedin_url": profile.linkedin_url,
+            "twitter_url": profile.twitter_url,
+            "website": profile.website,
+            "organizations": profile.organizations,
             "summary": profile.bio,
         },
         "summary": summary,
         "pages": 1,
         "projects": projects,
-        "skills_section": {
-            "Core Technologies": list(all_skills)[:20]
-        },
+        "skills_section": skills_dict,
         "contributions": [],
         "jd_analysis": jd_profile.model_dump()
     }

@@ -102,10 +102,11 @@ def _preamble(theme_hex: str) -> str:
 \renewcommand{{\labelitemi}}{{\textcolor{{theme}}{{$\bullet$}}}}
 
 % Refined project header with inline tech stack
-\newcommand{{\resumeProject}}[3]{{
+\newcommand{{\resumeProject}}[4]{{
     \vspace{{5pt}}
-    \noindent\textbf{{#1}} \hfill \href{{#2}}{{\faGithub}} \\
-    \textit{{#3}}
+    \noindent\href{{#2}}{{\textbf{{#1}}}} \hfill \href{{#2}}{{\faGithub}} \\
+    \textit{{#3}} \\
+    \textbf{{Tech Stack:}} #4
 }}
 
 \newcommand{{\resumeItemListStart}}{{
@@ -128,11 +129,12 @@ parsep=0pt
 def _header(p: Dict[str, Any]) -> str:
     name     = _esc(p.get("name") or p.get("username", ""))
     email    = p.get("email", "")
-    gh_url   = p.get("html_url", "")
+    gh_url   = p.get("github_url", "")
     gh_user  = p.get("username", "")
-    blog     = p.get("blog", "")
+    website  = p.get("website", "")
+    linkedin = p.get("linkedin_url", "")
     location = _esc(p.get("location", ""))
-    bio      = _esc(p.get("bio", ""))
+    orgs     = p.get("organizations", [])
 
     # Right column icons
     icons: List[str] = []
@@ -140,16 +142,15 @@ def _header(p: Dict[str, Any]) -> str:
         icons.append(rf"\href{{mailto:{email}}}{{\faEnvelope\ {_esc(email)}}}")
     if gh_url:
         icons.append(rf"\href{{{gh_url}}}{{\faGithub\ {_esc(gh_user)}}}")
-    if blog:
-        if "linkedin.com" in blog:
-            icons.append(rf"\href{{{blog}}}{{\faLinkedin\ {_esc(name)}}}")
-        else:
-            icons.append(rf"\href{{{blog}}}{{\faGlobe\ Portfolio}}")
+    if linkedin:
+        icons.append(rf"\href{{{linkedin}}}{{\faLinkedin\ LinkedIn}}")
+    if website:
+        icons.append(rf"\href{{{website}}}{{\faGlobe\ Portfolio}}")
 
     # Left column (description / location)
     left_lines: List[str] = []
-    if bio:
-        left_lines.append(rf"\textit{{{bio}}}")
+    if orgs:
+        left_lines.append(rf"\textbf{{{_esc(', '.join(orgs[:2]))}}}")
     if location:
         left_lines.append(rf"\small {location}")
 
@@ -179,15 +180,22 @@ def _summary(text: str) -> str:
 def _skills(skills: Dict[str, List[str]]) -> str:
     if not skills:
         return ""
-    rows = "\n".join(
-        rf"\item \textbf{{{_esc(cat)}:}} {', '.join(_esc(s) for s in items if s)}"
-        for cat, items in skills.items()
-        if items
-    )
+        
+    rows = []
+    for cat, items in skills.items():
+        if not items: continue
+        
+        if cat == "JD Matched Skills":
+            tags_str = " ".join(f"[{_esc(s)}]" for s in items if s)
+            rows.append(rf"\item \textbf{{Skills:}} {tags_str}")
+        else:
+            rows.append(rf"\item \textbf{{{_esc(cat)}:}} {', '.join(_esc(s) for s in items if s)}")
+            
+    rows_str = "\n".join(rows)
     return rf"""
 \section{{Technical Skills}}
 \resumeItemListStart
-{rows}
+{rows_str}
 \resumeItemListEnd
 """.lstrip("\n")
 
@@ -205,17 +213,19 @@ def _bullet_list(bullets: List[str]) -> str:
 
 
 # ── Open Source Contributions ────────────────────────────────────────────────
-def _contributions(contributions: List[Dict[str, str]]) -> str:
+def _contributions(contributions: List[Dict[str, Any]]) -> str:
     if not contributions:
         return ""
-    blocks: List[str] = [r"\section{Open Source Contributions}", r"\resumeItemListStart"]
+    blocks: List[str] = [r"\section{Open Source Contributions}"]
     for c in contributions:
-        name = _esc(c.get("name", ""))
+        name = _esc(c.get("name", "Repository"))
         url = c.get("url", "")
-        desc = _esc(c.get("contribution", ""))
-        link = rf"\href{{{url}}}{{{name}}}" if url else name
-        blocks.append(rf"\item \textbf{{{link}}}: {desc}")
-    blocks.append(r"\resumeItemListEnd")
+        tech_stack = ", ".join(_esc(t) for t in c.get("tech_stack", []) if t)
+        desc = _esc(c.get("desc", ""))
+        
+        # We reuse \resumeProject for OSS, no bullets
+        blocks.append(rf"\resumeProject{{{name}}}{{{url}}}{{{desc}}}{{{tech_stack}}}")
+        blocks.append(r"\vspace{4pt}")
     return "\n".join(blocks)
 
 # ── Projects (using three-argument \resumeProject) ──────────────────────────
@@ -226,11 +236,12 @@ def _projects(projects: List[Dict[str, Any]]) -> str:
     for proj in projects:
         name    = _esc(proj.get("name", "Project"))
         url     = proj.get("html_url") or proj.get("url", "")
-        tech_stack = ", ".join(_esc(t) for t in proj.get("tech_stack", [])[:6] if t)
+        tech_stack = ", ".join(_esc(t) for t in proj.get("tech_stack", []) if t)
         bullets = proj.get("bullets", [])
+        desc = _esc(proj.get("one_liner", ""))
 
-        # Use the three-argument resumeProject: title, GitHub URL, tech stack
-        blocks.append(rf"\resumeProject{{{name}}}{{{url}}}{{{tech_stack}}}")
+        # Use the four-argument resumeProject: title, GitHub URL, desc, tech stack
+        blocks.append(rf"\resumeProject{{{name}}}{{{url}}}{{{desc}}}{{{tech_stack}}}")
         if bullets:
             blocks.append(_bullet_list(bullets))
         else:
