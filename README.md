@@ -1,186 +1,157 @@
-# 🎯 alldone
+# 🎯 alldone: GitHub-to-ATS Resume Parser
 
-> **JD → GitHub → ATS Resume** — AI-powered resume generator that tailors your GitHub profile to any job description, using a full **Model Context Protocol (MCP)** multi-agent architecture.
+> **Job Description → GitHub Portfolios → Tailored ATS Resumes** — An AI-powered intelligence platform that parses your GitHub profile, matches your real-world code against a job description, highlights skill gaps, and compiles an ATS-ready LaTeX resume. Built on a modular **Model Context Protocol (MCP)** architecture.
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-FF4B4B?style=flat&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![FastMCP](https://img.shields.io/badge/MCP-FastMCP-6366F1?style=flat)](https://github.com/jlowin/fastmcp)
 [![Groq](https://img.shields.io/badge/Groq-LLaMA_3.3_70B-F55036?style=flat)](https://groq.com)
-[![MCP](https://img.shields.io/badge/MCP-FastMCP-6366F1?style=flat)](https://github.com/jlowin/fastmcp)
+[![Gemini](https://img.shields.io/badge/Google-Gemini_2.5_Flash-4285F4?style=flat&logo=google&logoColor=white)](https://aistudio.google.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-## 🚀 What It Does
+## 🚀 The Problem & The Solution
 
-Most GitHub resume tools stop at "extract repositories." Recruiters actually care about:
+### The Problem
+* **GitHub is unstructured evidence**: A developer's GitHub contains hundreds of commits, README files, dependencies, and complex files. Recruiters and ATS scanners cannot easily quantify this into a tailored resume.
+* **Ad-hoc resume tailoring is slow**: Rewriting project descriptions to highlight skills required by a specific Job Description is tedious and prone to writer's block.
+* **ATS Rejection**: Many resumes get filtered out due to formatting, lack of target keywords, or poor representation of technical accomplishments.
 
-```
-Job Description  →  Candidate Evidence  →  Resume Tailored For That Role
-```
-
-This tool does exactly that — give it a GitHub username and a job description, and it outputs a complete, ATS-friendly resume with **LLM-scored project rankings**, skill gap analysis, and LaTeX/Markdown export.
-
----
-
-## ✨ Features
-
-| Feature | Description |
-|---|---|
-| **MCP Agent Architecture** | 4 FastMCP tools communicate over JSON-RPC — cleanly decoupled |
-| **GitHub Extraction** | Profile, repos, READMEs, languages, stars, topics via GitHub REST API |
-| **JD Analysis** | Extracts required skills, domain, and experience level via LLM |
-| **Smart Repo Ranking** | LLM scoring + keyword-overlap fallback — no repo ever shows 0% unfairly |
-| **Resume Generation** | Tailored action-verb bullets, professional summary, grouped skills section |
-| **Skill Gap Analysis** | Shows exactly what the JD needs vs. what your GitHub proves |
-| **LaTeX Export** | ATS Classic template with action-verb bullets and skills section |
+### The Solution
+**alldone** bridges this gap:
+1. **Scans & Indexes**: Pulls your GitHub profile, repository metadata, dependencies, READMEs, source files, and external Open Source Contributions.
+2. **Structures Job Descriptions**: Parses required skills, preferred qualifications, and domain experience from the JD.
+3. **Semantic Matching**: Leverages an LLM-powered engine to score each project based on JD relevance and keyword overlap.
+4. **Highlights Skill Gaps**: Uncovers which required skills you have demonstrated in your code, which ones are missing, and suggests learning pathways.
+5. **Generates Tailored Resumes**: Synthesizes exactly 3 professional, action-verb bullet points per project and a full-line overview focused on the target role, formatted in clean, ATS-compliant LaTeX.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture Flow
 
-```
-Streamlit Frontend  (dashboard.py)
-        ↓  JSON-RPC over stdio
-MCP Client Wrapper  (client.py)
-        ↓
-FastMCP Server      (server.py)
-  ├── 🔧 Tool: extract_github_profile
-  ├── 🔧 Tool: analyze_job_description
-  ├── 🔧 Tool: score_repositories
-  └── 🔧 Tool: generate_resume_content
-        ↓
-LaTeX Generator     (latex.py)
-```
+The system is designed on top of **Model Context Protocol (MCP)**, completely separating the presentation layer from backend tool execution. The Streamlit frontend communicates with the backend exclusively via JSON-RPC stdio streams:
 
-The Streamlit frontend **never** calls GitHub or Groq directly. Every operation is a structured MCP tool call to the server, which runs as a subprocess communicating over `stdio`.
-
----
-
-## 📁 Project Structure
-
-```
-alldone/
-├── dashboard.py      # Streamlit UI — renders tabs, calls MCP client
-├── client.py         # MCP Client — asyncio stdio wrapper, sync interface
-├── server.py         # FastMCP Server — GitHub API + Groq LLM tools
-├── latex.py          # LaTeX templates (ATS Classic, Modern, Research)
-├── requirements.txt  # Python dependencies
-├── .env.example      # Environment variable template
-└── README.md
+```mermaid
+graph TD
+    User([Candidate / Recruiter]) -->|1. Inputs Username & Job Description| UI[Streamlit Frontend: dashboard.py]
+    UI -->|2. Invokes Tools via JSON-RPC| Client[MCP Client Wrapper: client.py]
+    Client -->|3. stdio Stream / JSON-RPC| Server[FastMCP Server: server.py]
+    
+    subgraph Backend Services & Integration
+        Server -->|4a. Fetch Metadata & Code| GH[GitHub API Service]
+        Server -->|4b. Structured Analysis| LLM[LLM Service: Groq / Gemini]
+        
+        GH -->|Profile, Repos, Files, Commits, PRs| Server
+        LLM -->|Scoring, Tailoring, Bullets, JD Extraction| Server
+        
+        Server -->|5. Matcher Engine| Matcher[matcher_service.py]
+        Server -->|6. Ranker Engine| Ranker[ranking_service.py]
+        Server -->|7. Resume Tailoring Engine| Resume[resume_service.py]
+    end
+    
+    Resume -->|8. Generate Structured Schema| UI
+    UI -->|9. Render ATS Preview| Render[HTML Preview Box]
+    UI -->|10. Generate ATS Classic LaTeX| Latex[latex.py]
+    Latex -->|11. Downloadable Source| User
 ```
 
 ---
 
-## 📋 Prerequisites
+## 📁 Project Structure & Module Breakdown
 
-- Python 3.10+
-- [Groq API key](https://console.groq.com) — free tier works fine
-- GitHub Client ID + Secret — optional, raises rate limit from 60 → 5000 req/hr
+```
+GithubResumeParser/
+├── dashboard.py               # Streamlit Frontend (layout, forms, tabs, state management)
+├── client.py                  # Sync/Async MCP Client wrapper with auth fallbacks
+├── server.py                  # FastMCP Server registering JSON-RPC tool endpoints
+├── latex.py                   # Formatter converting JSON resume data into LaTeX
+├── style.css                  # Custom styling for streamlit dark/glassmorphic interface
+├── requirements.txt           # Declared python package dependencies
+├── models/                    # Pydantic data schemas for type-safety
+│   ├── candidate.py           # Candidate profile and dashboard representation
+│   ├── job_description.py     # Structured Job Description profile
+│   ├── match_result.py        # Project scoring, evidence mapping, and skill gap lists
+│   └── repository.py          # Repository files, languages, and metadata
+├── services/                  # Business logic engines
+│   ├── candidate_service.py   # Synthesizes profile metadata into candidate overview
+│   ├── contribution_service.py# Scrapes & structures external open-source PRs
+│   ├── extractor_service.py   # Extracts readme, configuration, and source files
+│   ├── github_service.py      # Fetches user details and full repository lists
+│   ├── jd_service.py          # Extracts required and preferred skills from JDs
+│   ├── llm_service.py         # LLM configuration (Groq/Gemini), prompt handling, retries
+│   ├── matcher_service.py     # Performs strict evidence-based project scoring against JDs
+│   ├── ranking_service.py     # Ranks matches and computes overall skill gap matrices
+│   ├── readme_service.py      # Summarizes project architecture and technologies
+│   └── resume_service.py      # Writes tailored summaries and concise bullet points
+└── utils/                     # Supporting utilities
+    ├── cache.py               # SQLite disk cache decorator to prevent rate-limit exhaustion
+    ├── constants.py           # Core prompts, model mappings, and configuration defaults
+    ├── github_api.py          # Low-level REST API requests to GitHub API
+    └── parser.py              # Parsers for package.json, requirements.txt, and code
+```
+
+---
+
+## 🛠️ Technology Stack
+
+* **Frontend**: Streamlit + Custom Vanilla CSS (Modern glassmorphic layout)
+* **Agent Protocol**: Model Context Protocol (FastMCP Client/Server over stdio)
+* **LLM Providers**: 
+  * **Groq** (LLaMA 3.3 70B) for high-speed, structured text parsing.
+  * **Google** (Gemini 2.5 Flash) as a high-capacity fallback with a large free tier.
+* **Data Core**: GitHub REST API v3 (fetching profiles, repos, config files, commits, PRs)
+* **Storage / Cache**: Disk-based SQLite caching for HTTP and LLM payloads.
+* **Exporter**: Raw copyable LaTeX source & `.tex` file output formatted for ATS scanners.
 
 ---
 
 ## ⚡ Quick Start
 
+### 1. Prerequisites
+Ensure you have **Python 3.10+** installed on your system.
+
+### 2. Installation
+Clone the repository and install all required libraries:
 ```bash
-# 1. Clone
-git clone https://github.com/hillhack/alldone
+git clone https://github.com/hillhack/alldone.git
 cd alldone
-
-# 2. Install dependencies
 pip install -r requirements.txt
-
-# 3. Configure environment
-cp .env.example .env
-# Edit .env — add your GROQ_API_KEY
-
-# 4. Run
-streamlit run dashboard.py
 ```
 
+### 3. Configure API Credentials
+Copy the example environment file:
+```bash
+cp .env.example .env
+```
+Fill in the credentials in your `.env` file:
+* `GROQ_API_KEY`: Get your free key at [console.groq.com](https://console.groq.com/).
+* `GEMINI_API_KEY`: Get your free key at [aistudio.google.com](https://aistudio.google.com/app/apikey).
+* `GITHUB_TOKEN` *(Optional)*: Set your personal token to increase GitHub API rate limits from 60 to 5000 requests per hour. You can create one at [github.com/settings/tokens](https://github.com/settings/tokens).
+
+### 4. Run the Platform
+Start the Streamlit application:
+```bash
+streamlit run dashboard.py
+```
 Open **http://localhost:8501** in your browser.
 
 ---
 
-## 🔑 Environment Variables
+## 🖥️ Platform User Flow
 
-```env
-# Required
-GROQ_API_KEY=gsk_...
-
-# Optional — increases GitHub API rate limit from 60 to 5000 req/hr
-GITHUB_CLIENT_ID=your_client_id
-GITHUB_CLIENT_SECRET=your_client_secret
-```
-
----
-
-## 🖥️ User Flow
-
-```
-Enter GitHub Username
-        ↓
-Paste Job Description
-        ↓
-Choose Resume Length  (1-page / 2-page)
-        ↓
-Click 🚀 Generate Resume
-        ↓
-Review Ranked Projects with real match %
-        ↓
-Export .tex → compile on Overleaf or locally
-```
-
----
-
-## 📄 Output Tabs
-
-### 📄 Resume Tab
-- Full white-paper resume preview rendered in the browser
-- Download as `.tex` (LaTeX)
-
-### 🏆 Projects Tab
-- All repos scored by LLM relevance against the JD
-- Real match % with matched skill badges
-- ▲ / ▼ reorder controls
-
-### 🎯 Skills Gap Tab
-- **✅ Skills You Have** — JD-required skills evidenced in your GitHub
-- **❌ Skills to Learn** — Required but not found in your repos
-- Full candidate tech stack extracted from all repos
-
-### ⚙️ LaTeX Tab
-- Full LaTeX source, syntax-highlighted
-- Compile with `pdflatex resume.tex` or upload to [Overleaf](https://overleaf.com)
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | Streamlit |
-| Agent Protocol | MCP / FastMCP (JSON-RPC over stdio) |
-| LLM | Groq + LLaMA 3.3 70B |
-| Data Source | GitHub REST API v3 |
-| Export | LaTeX (pdflatex / Overleaf) |
-| Language | Python 3.10+ |
-
----
-
-## 🗺️ Roadmap
-
-- [ ] PDF compilation via `pdflatex` subprocess
-- [ ] PostgreSQL persistence (users, resumes, history)
-- [ ] LinkedIn profile import
-- [ ] Cover letter generation
-- [ ] Resume scoring against JD (0–100)
-- [ ] Interview question generation
-- [ ] LeetCode + Kaggle profile import
-- [ ] MCP Resources — expose generated resumes as downloadable resources
-- [ ] MCP Prompts — recruiter & candidate persona prompt templates
+1. **Setup**: Select your preferred **LLM Provider** (Groq or Google Gemini). Provide a custom API key and GitHub Token if not already set in your `.env` file (direct link helpers are provided in the sidebar).
+2. **Configure Analysis**:
+   * **Full Analysis**: Automatically processes all repositories.
+   * **Quick Analysis**: Fetches your repositories and allows you to select which projects you want to analyze and match.
+3. **Execution**: Paste the target **Job Description**, choose your **Resume Length** (1-page or 2-page), and click **Run**.
+4. **Results Tabs**:
+   * **📄 Resume**: Preview the generated resume and copy/download the `.tex` source code. You can provide *Custom Instructions* in the expander at the top of the tab to regenerate and tailor it further (e.g. *"Focus on DevOps features"*).
+   * **📂 Projects**: Inspect each project's rank, overall match %, matched/missing skills list, and direct evidence sentences extracted from the code.
+   * **🎯 Skill Gap**: Review the compiled list of overall matched and missing skills with recommended learning pathways.
 
 ---
 
 ## 📝 License
 
-MIT — see [LICENSE](LICENSE).
+Distributed under the MIT License. See `LICENSE` for more details.
