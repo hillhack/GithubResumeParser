@@ -160,13 +160,24 @@ with st.sidebar:
 def handle_error(e):
     import traceback
     error_msg = str(e)
-    if "tokens per day" in error_msg.lower() or "tpd" in error_msg.lower():
+    error_msg_lower = error_msg.lower()
+    
+    if "tokens per day" in error_msg_lower or "tpd" in error_msg_lower:
         import re
         time_match = re.search(r"Please try again in ([0-9a-z\.]+)", error_msg)
         time_left = time_match.group(1) if time_match else "24 hours"
-        st.error(f"🚨 **Groq Daily Token Limit Exhausted!**\n\nYour account has reached its 100,000 token limit because Full Analysis scans massive amounts of code.\n\n**How to fix:**\n1. Wait until your quota resets in **{time_left}**.\n2. Create a new Groq API key using a **different Google/GitHub account** and paste it in the Custom API Keys sidebar.\n3. **Switch the LLM Provider to Google Gemini**, which has a much larger free tier!")
+        st.error(f"🚨 **Groq Daily Token Limit Exhausted!**\n\nYour account has reached its daily limit because Full Analysis scans massive amounts of code.\n\n**How to fix:**\n1. Wait until your quota resets in **{time_left}**.\n2. Create a new Groq API key using a **different Google/GitHub account** and paste it in the Custom API Keys sidebar.\n3. **Switch the LLM Provider to Google Gemini**, which has a much larger free tier!")
+        
+    elif "quota exceeded" in error_msg_lower or "resourceexhausted" in error_msg_lower or "429" in error_msg_lower or "generativelanguage" in error_msg_lower:
+        import re
+        time_match = re.search(r"retry in ([0-9a-zA-Z\.\s]+)", error_msg)
+        if not time_match:
+            time_match = re.search(r"seconds:\s*(\d+)", error_msg)
+        time_left = time_match.group(1) if time_match else "30 seconds"
+        st.error(f"🚨 **Gemini API Rate Limit/Quota Exceeded!**\n\nGoogle Gemini's free tier has a strict limit of 15/20 requests per minute.\n\n**How to fix:**\n1. Wait **{time_left}** for the current window to reset, then click retry.\n2. **Switch to Quick Analysis mode** to only scan 2 or 3 select repositories (uses significantly fewer API calls).\n3. **Switch to Groq (Llama 3.3)** by providing a Groq API key in the sidebar.")
+        
     else:
-        st.error(f"{error_msg}\n\n```\n{traceback.format_exc()}\n```")
+        st.error(f"🚨 **Application Error**\n\nAn unexpected error occurred during execution:\n\n**Details**: `{error_msg}`\n\n```python\n{traceback.format_exc()}\n```")
 
 # ── Header ───────────────────────────────────────────────────────
 if not st.session_state.match_results:

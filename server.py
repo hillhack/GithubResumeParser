@@ -96,7 +96,7 @@ def match_repositories(repo_profiles: list, jd_profile: dict, raw_repos: list = 
         if raw_repos:
             for r in raw_repos:
                 if r.get("metadata", {}).get("name") == repo_prof.name:
-                    readme_text = r.get("files", {}).get("readme", "")
+                    readme_text = r.get("files", {}).get("readme", "") or ""
                     break
                     
         match_res = match_repository_to_jd(repo_prof, jd, readme_text, model_choice)

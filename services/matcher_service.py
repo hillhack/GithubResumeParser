@@ -7,6 +7,8 @@ import json
 
 def match_repository_to_jd(repo_profile: RepositoryProfile, jd_profile: JobDescriptionProfile, readme_text: str = "", model_choice: str = "Groq") -> MatchResult:
     """Matches a structured RepositoryProfile against a structured JobDescriptionProfile using an LLM, verifying missing skills against the README."""
+    if not readme_text:
+        readme_text = ""
     
     prompt = f"""Compare the Candidate's Repository Profile against the Job Description Profile.
 

@@ -58,8 +58,16 @@ def call_llm(sys_prompt: str, user_prompt: str, model_choice: str = "Groq", temp
                 )
                 return response.text or "{}"
             except ResourceExhausted as e:
+                err_str = str(e)
+                import re
+                seconds_match = re.search(r"retry in ([0-9\.]+)s", err_str)
+                if not seconds_match:
+                    seconds_match = re.search(r"seconds:\s*(\d+)", err_str)
+                
+                wait = float(seconds_match.group(1)) + 1.0 if seconds_match else base_wait * (2 ** attempt)
+                wait = min(wait, 65.0)
+                
                 if attempt < max_retries - 1:
-                    wait = base_wait * (2 ** attempt)
                     log.warning(f"Gemini 429 rate limit — waiting {wait}s before retry {attempt+1}/{max_retries-1}")
                     time.sleep(wait)
                 else:
