@@ -219,9 +219,12 @@ if not st.session_state.match_results:
                             "selected_repo_names": repos_to_scan,
                             "model_choice": model_choice
                         })
-                        profiles = build_res["profiles"]
+                        if isinstance(build_res, dict):
+                            profiles = build_res["profiles"]
+                            st.session_state.raw_repos = build_res["raw_repos"]
+                        else:
+                            profiles = build_res
                         st.session_state.repository_profiles = profiles
-                        st.session_state.raw_repos = build_res["raw_repos"]
                         
                         st.write(f"Structuring Job Description with {model_choice}...")
                         jd_prof = mcp.call("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
@@ -326,9 +329,12 @@ if not st.session_state.match_results:
                                 "selected_repo_names": selected_repos,
                                 "model_choice": model_choice
                             })
-                            profiles = build_res["profiles"]
+                            if isinstance(build_res, dict):
+                                profiles = build_res["profiles"]
+                                st.session_state.raw_repos = build_res["raw_repos"]
+                            else:
+                                profiles = build_res
                             st.session_state.repository_profiles = profiles
-                            st.session_state.raw_repos = build_res["raw_repos"]
                             
                             st.write(f"Structuring Job Description with {model_choice}...")
                             jd_prof = mcp.call("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
