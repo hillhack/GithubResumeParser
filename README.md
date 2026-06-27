@@ -13,18 +13,19 @@
 
 ## 🚀 The Problem & The Solution
 
-### The Problem
-* **GitHub is unstructured evidence**: A developer's GitHub contains hundreds of commits, README files, dependencies, and complex files. Recruiters and ATS scanners cannot easily quantify this into a tailored resume.
-* **Ad-hoc resume tailoring is slow**: Rewriting project descriptions to highlight skills required by a specific Job Description is tedious and prone to writer's block.
-* **ATS Rejection**: Many resumes get filtered out due to formatting, lack of target keywords, or poor representation of technical accomplishments.
+### The Problem: Repetitive Manual Labor
+Every time a candidate of any field (software engineering, data science, DevOps, system administration, product management, research, etc.) applies for a new job, they must repeat the tedious, time-consuming manual process of tailoring their resume to match the specific Job Description (JD). This painful workflow includes:
+* Manually cross-referencing your GitHub repositories to find which projects best align with the JD's requirements.
+* Manually rewriting project summaries and descriptions to match target keywords and skills to pass ATS filters.
+* Dealing with writer's block when trying to draft highly professional, action-verb bullet points highlighting technical choices.
+* Wrangling LaTeX files or document formatting repeatedly to compile a clean, ATS-compliant page.
 
-### The Solution
-**alldone** bridges this gap:
-1. **Scans & Indexes**: Pulls your GitHub profile, repository metadata, dependencies, READMEs, source files, and external Open Source Contributions.
-2. **Structures Job Descriptions**: Parses required skills, preferred qualifications, and domain experience from the JD.
-3. **Semantic Matching**: Leverages an LLM-powered engine to score each project based on JD relevance and keyword overlap.
-4. **Highlights Skill Gaps**: Uncovers which required skills you have demonstrated in your code, which ones are missing, and suggests learning pathways.
-5. **Generates Tailored Resumes**: Synthesizes exactly 3 professional, action-verb bullet points per project and a full-line overview focused on the target role, formatted in clean, ATS-compliant LaTeX.
+### The Solution: How alldone Automates this Labor
+**alldone** completely automates this repetitive manual work:
+1. **Targeted JD Parsing**: It extracts the exact required skills, preferred qualifications, and core domain from any pasted Job Description.
+2. **Deep Codebase Inspection**: It scans your GitHub profile, repository structures, READMEs, source files, dependency configurations, and external merged Open Source PRs.
+3. **Automated Relevance Scoring**: It uses LLM semantic matching to score and rank each project based on actual codebase evidence, highlighting where requirements are met.
+4. **Instant ATS LaTeX Compiler**: It automatically drafts exactly 3 precise, punchy bullet points (describing *how* you solved the technical challenges) and compiles everything into a download-ready ATS Classic LaTeX template in seconds.
 
 ---
 
