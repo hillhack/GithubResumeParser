@@ -58,7 +58,7 @@ graph TD
 ```
 
 ---
-
+![Dashboard Preview](image.png)
 ## 📁 Project Structure & Module Breakdown
 
 ```
