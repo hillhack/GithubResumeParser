@@ -56,11 +56,12 @@ def extract_github_metadata(username: str, token: str = None, model_choice: str 
         "raw_repos": [r.model_dump() for r in repos]
     }
 
-def build_repository_profiles(username: str, raw_repos: list, selected_repo_names: list, model_choice: str = "Groq", token: str = None) -> list:
+def build_repository_profiles(username: str, raw_repos: list, selected_repo_names: list, model_choice: str = "Groq", token: str = None) -> dict:
     """Step 2: Fully extracts knowledge for selected repositories."""
     from models.repository import Repository
     
     profiles = []
+    updated_repos = []
     
     for raw in raw_repos:
         repo = Repository(**raw)
@@ -70,8 +71,14 @@ def build_repository_profiles(username: str, raw_repos: list, selected_repo_name
             # LLM Profile extraction
             profile = generate_repository_profile(repo, model_choice)
             profiles.append(profile.model_dump())
+            updated_repos.append(repo.model_dump())
+        else:
+            updated_repos.append(raw)
             
-    return profiles
+    return {
+        "profiles": profiles,
+        "raw_repos": updated_repos
+    }
 
 def analyze_jd(jd_text: str, model_choice: str = "Groq") -> dict:
     """Step 4: Structuring the Job Description."""

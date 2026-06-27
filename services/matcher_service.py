@@ -50,15 +50,49 @@ Return ONLY a JSON object:
     raw = call_llm(sys_prompt, prompt, model_choice=model_choice)
     parsed = extract_json_from_llm(raw)
     
+    matched_skills = parsed.get("matched_skills", [])
+    missing_skills = parsed.get("missing_skills", [])
+    evidence = parsed.get("evidence", {})
+    
+    # Post-process to prevent false-negative missing skills
+    readme_lower = readme_text.lower()
+    profile_sources = []
+    for field in ["primary_skills", "secondary_skills", "frameworks", "libraries", "tools", "programming_languages", "apis", "keywords"]:
+        val = getattr(repo_profile, field, [])
+        if isinstance(val, list):
+            profile_sources.extend([str(item).lower() for item in val])
+            
+    still_missing = []
+    for skill in missing_skills:
+        skill_lower = skill.lower()
+        variations = [skill_lower]
+        if "(" in skill_lower and ")" in skill_lower:
+            parts = skill_lower.replace(")", "").split("(")
+            variations.extend([p.strip() for p in parts if p.strip()])
+            
+        found_in_readme = any(var in readme_lower for var in variations)
+        found_in_profile = any(var in src or src in var for var in variations for src in profile_sources)
+        
+        if found_in_readme or found_in_profile:
+            if skill not in matched_skills:
+                matched_skills.append(skill)
+            if skill not in evidence:
+                if found_in_readme:
+                    evidence[skill] = f"The project README references {skill}."
+                else:
+                    evidence[skill] = f"The project profile lists {skill} in its technical metadata."
+        else:
+            still_missing.append(skill)
+            
     return MatchResult(
         repository_name=repo_profile.name,
         overall_score=float(parsed.get("overall_score", 0.0)),
-        matched_skills=parsed.get("matched_skills", []),
-        missing_skills=parsed.get("missing_skills", []),
+        matched_skills=matched_skills,
+        missing_skills=still_missing,
         matched_libraries=parsed.get("matched_libraries", []),
         matched_frameworks=parsed.get("matched_frameworks", []),
         matched_domain=str(parsed.get("matched_domain", "")),
         matched_keywords=parsed.get("matched_keywords", []),
-        evidence=parsed.get("evidence", {}),
+        evidence=evidence,
         confidence=str(parsed.get("confidence", ""))
     )

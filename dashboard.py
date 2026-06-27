@@ -202,13 +202,15 @@ if not st.session_state.match_results:
                         
                         repos_to_scan = [r["metadata"]["name"] for r in st.session_state.raw_repos]
                         st.write(f"Building Knowledge Base for {len(repos_to_scan)} repositories with {model_choice}...")
-                        profiles = mcp.call("build_repository_profiles", {
+                        build_res = mcp.call("build_repository_profiles", {
                             "username": username,
                             "raw_repos": st.session_state.raw_repos,
                             "selected_repo_names": repos_to_scan,
                             "model_choice": model_choice
                         })
+                        profiles = build_res["profiles"]
                         st.session_state.repository_profiles = profiles
+                        st.session_state.raw_repos = build_res["raw_repos"]
                         
                         st.write(f"Structuring Job Description with {model_choice}...")
                         jd_prof = mcp.call("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
@@ -307,13 +309,15 @@ if not st.session_state.match_results:
                         st.session_state.latex_code = None
                         with st.status("Running Quick Analysis...", expanded=True) as status:
                             st.write(f"Building Knowledge Base for {len(selected_repos)} repositories with {model_choice}...")
-                            profiles = mcp.call("build_repository_profiles", {
+                            build_res = mcp.call("build_repository_profiles", {
                                 "username": st.session_state.username,
                                 "raw_repos": st.session_state.raw_repos,
                                 "selected_repo_names": selected_repos,
                                 "model_choice": model_choice
                             })
+                            profiles = build_res["profiles"]
                             st.session_state.repository_profiles = profiles
+                            st.session_state.raw_repos = build_res["raw_repos"]
                             
                             st.write(f"Structuring Job Description with {model_choice}...")
                             jd_prof = mcp.call("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
