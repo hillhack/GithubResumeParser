@@ -30,8 +30,8 @@ Candidate Project Profile:
 {repo.model_dump_json()}
 
 Follow these strict rules:
-1. Write exactly 3-4 highly concise, punchy bullets (maximum 15-20 words per bullet). Start with strong action verbs. Focus on what was built, problem solved, and measurable impact.
-2. Provide a 1 sentence description explaining the core purpose and architecture of the project.
+1. Write exactly 3 highly professional, extremely concise, punchy bullet points (maximum 15-20 words per bullet; not 4, exactly 3). Start each bullet point with a strong action verb. Highlight the specific feature built, technical problem solved, and measurable engineering impact.
+2. Provide a single, complete, well-formed sentence (about 15-25 words, spanning a full line) describing the project's core purpose, domain, and architecture. It should feel substantive and complete, not just a few words.
 3. Filter the tech stack to ONLY include technologies relevant to the Job Description skills above, plus 1 or 2 core defining technologies of the project. Keep the total tech stack list to 5-8 items maximum.
 CRITICAL: Explicitly incorporate the 'domain', 'key_features', and 'architecture_patterns' into your bullet points, but keep them extremely brief. Do not make up info.
 
@@ -39,7 +39,7 @@ Return ONLY JSON:
 {{
     "bullets": ["<bullet 1>", "<bullet 2>", "<bullet 3>"],
     "tech_stack": ["<tech1>", "<tech2>"],
-    "one_liner": "<one sentence explaining the core purpose and architecture>"
+    "one_liner": "<one complete sentence explaining the core purpose and architecture>"
 }}
 """
         raw = call_llm(f"You are an expert resume writer. Output ONLY JSON.{sys_override}", prompt, model_choice)
@@ -48,7 +48,7 @@ Return ONLY JSON:
         projects.append({
             "name": repo.name,
             "url": f"https://github.com/{profile.username}/{repo.name}",
-            "bullets": parsed.get("bullets", [f"Built {repo.name}."]),
+            "bullets": parsed.get("bullets", [f"Built {repo.name}."])[:3],
             "tech_stack": parsed.get("tech_stack", repo.primary_skills + repo.frameworks),
             "one_liner": parsed.get("one_liner", repo.one_line_summary)
         })

@@ -32,7 +32,10 @@ INITIAL_STATE = {
     "resume_content": None,
     "latex_code": None,
     "username": "",
-    "analysis_mode": "Full Analysis (Scan all repositories)"
+    "analysis_mode": "Full Analysis (Scan all repositories)",
+    "groq_api_key": "",
+    "gemini_api_key": "",
+    "github_token": ""
 }
 
 for k, v in INITIAL_STATE.items():
@@ -79,8 +82,6 @@ with st.sidebar:
 
     st.markdown("<span class='input-label'>LLM Provider</span>", unsafe_allow_html=True)
     
-    # We must delay the default selection logic because API keys are now defined below.
-    # Actually, we can just grab them from st.session_state if they exist.
     default_model_idx = 0
     if os.environ.get("GEMINI_API_KEY") and not os.environ.get("GROQ_API_KEY"):
         default_model_idx = 1
@@ -91,17 +92,59 @@ with st.sidebar:
         index=default_model_idx, label_visibility="collapsed",
     )
     
-    with st.expander("🔑 Custom API Keys", expanded=False):
-        st.markdown("<small>Provide your own keys to bypass default limits.</small>", unsafe_allow_html=True)
-        gh_key = st.text_input("GitHub Token", type="password", help="https://github.com/settings/tokens")
-        groq_key = st.text_input("Groq API Key", type="password", help="https://console.groq.com/keys")
-        gem_key = st.text_input("Gemini API Key", type="password", help="https://aistudio.google.com/app/apikey")
-        
-        if gh_key: os.environ["GITHUB_TOKEN"] = gh_key
-        if groq_key: os.environ["GROQ_API_KEY"] = groq_key
-        if gem_key: os.environ["GEMINI_API_KEY"] = gem_key
-        
-        st.markdown("<small><a href='https://github.com/settings/tokens' target='_blank'>Get GitHub</a> | <a href='https://console.groq.com/keys' target='_blank'>Get Groq</a> | <a href='https://aistudio.google.com/app/apikey' target='_blank'>Get Gemini</a></small>", unsafe_allow_html=True)
+    # Conditional API Key block based on LLM choice
+    if "Groq" in model_choice:
+        st.markdown("<span class='input-label'>Groq API Key</span>", unsafe_allow_html=True)
+        groq_placeholder = "gsk_..."
+        if os.environ.get("GROQ_API_KEY") and not st.session_state.get("groq_api_key"):
+            groq_placeholder = "Token detected in environment"
+        groq_key = st.text_input(
+            "Groq API Key",
+            type="password",
+            value=st.session_state.get("groq_api_key", ""),
+            placeholder=groq_placeholder,
+            help="Provide your own Groq API key to bypass limits.",
+            label_visibility="collapsed"
+        )
+        if groq_key:
+            st.session_state.groq_api_key = groq_key
+            os.environ["GROQ_API_KEY"] = groq_key
+        st.markdown("<small><a href='https://console.groq.com/keys' target='_blank'>Get free Groq API Key</a></small>", unsafe_allow_html=True)
+    else:
+        st.markdown("<span class='input-label'>Gemini API Key</span>", unsafe_allow_html=True)
+        gemini_placeholder = "AIzaSy..."
+        if os.environ.get("GEMINI_API_KEY") and not st.session_state.get("gemini_api_key"):
+            gemini_placeholder = "Token detected in environment"
+        gemini_key = st.text_input(
+            "Gemini API Key",
+            type="password",
+            value=st.session_state.get("gemini_api_key", ""),
+            placeholder=gemini_placeholder,
+            help="Provide your own Gemini API key to bypass limits.",
+            label_visibility="collapsed"
+        )
+        if gemini_key:
+            st.session_state.gemini_api_key = gemini_key
+            os.environ["GEMINI_API_KEY"] = gemini_key
+        st.markdown("<small><a href='https://aistudio.google.com/app/apikey' target='_blank'>Get free Gemini API Key</a></small>", unsafe_allow_html=True)
+
+    # Separate GitHub Token block
+    st.markdown("<span class='input-label'>GitHub Token (Optional)</span>", unsafe_allow_html=True)
+    gh_token_placeholder = "ghp_..."
+    if os.environ.get("GITHUB_TOKEN") and not st.session_state.get("github_token"):
+        gh_token_placeholder = "Token detected in environment"
+    gh_token = st.text_input(
+        "GitHub Token",
+        type="password",
+        value=st.session_state.get("github_token", ""),
+        placeholder=gh_token_placeholder,
+        help="Only required if GITHUB_TOKEN is not already available in environment variables.",
+        label_visibility="collapsed"
+    )
+    if gh_token:
+        st.session_state.github_token = gh_token
+        os.environ["GITHUB_TOKEN"] = gh_token
+    st.markdown("<small><a href='https://github.com/settings/tokens' target='_blank'>Create GitHub Personal Access Token</a></small>", unsafe_allow_html=True)
 
     
     st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
@@ -146,13 +189,13 @@ if not st.session_state.match_results:
             else:
                 st.session_state.username = username
                 try:
+                    st.session_state.resume_content = None
+                    st.session_state.latex_code = None
                     with st.status("Running Full Analysis...", expanded=True) as status:
                         st.write(f"Extracting GitHub Profile & Metadata with {model_choice}...")
                         res = mcp.call("extract_github_metadata", {
                             "username": username, 
-                            "model_choice": model_choice,
-                            "groq_api_key": os.environ.get("GROQ_API_KEY"),
-                            "gemini_api_key": os.environ.get("GEMINI_API_KEY")
+                            "model_choice": model_choice
                         })
                         st.session_state.github_metadata = res["dashboard"]
                         st.session_state.raw_repos = res["raw_repos"]
@@ -163,9 +206,7 @@ if not st.session_state.match_results:
                             "username": username,
                             "raw_repos": st.session_state.raw_repos,
                             "selected_repo_names": repos_to_scan,
-                            "model_choice": model_choice,
-                            "groq_api_key": os.environ.get("GROQ_API_KEY"),
-                            "gemini_api_key": os.environ.get("GEMINI_API_KEY")
+                            "model_choice": model_choice
                         })
                         st.session_state.repository_profiles = profiles
                         
@@ -219,9 +260,7 @@ if not st.session_state.match_results:
                     with st.spinner("Extracting Profile & Repository Metadata..."):
                         res = mcp.call("extract_github_metadata", {
                             "username": username, 
-                            "model_choice": model_choice,
-                            "groq_api_key": os.environ.get("GROQ_API_KEY"),
-                            "gemini_api_key": os.environ.get("GEMINI_API_KEY")
+                            "model_choice": model_choice
                         })
                         st.session_state.github_metadata = res["dashboard"]
                         st.session_state.raw_repos = res["raw_repos"]
@@ -236,7 +275,7 @@ if not st.session_state.match_results:
             st.markdown(f"## {prof['name'] or prof['username']}")
             st.markdown("### Select Repositories for Analysis")
             if "quick_selected_repos" not in st.session_state:
-                st.session_state.quick_selected_repos = [r["metadata"]["name"] for r in st.session_state.raw_repos[:5]]
+                st.session_state.quick_selected_repos = [r["metadata"]["name"] for r in st.session_state.raw_repos[:max_projects]]
 
             selected_repos = []
             for r in st.session_state.raw_repos:
@@ -264,6 +303,8 @@ if not st.session_state.match_results:
                     st.warning("Please select at least one repository.")
                 else:
                     try:
+                        st.session_state.resume_content = None
+                        st.session_state.latex_code = None
                         with st.status("Running Quick Analysis...", expanded=True) as status:
                             st.write(f"Building Knowledge Base for {len(selected_repos)} repositories with {model_choice}...")
                             profiles = mcp.call("build_repository_profiles", {
@@ -288,81 +329,54 @@ if not st.session_state.match_results:
                             
                             st.session_state.match_results = match_res["ranked_matches"]
                             st.session_state.overall_skill_gap = match_res["overall_skill_gap"]
-                            status.update(label="✅ Analysis Complete!", state="complete")
+                            
+                            st.write(f"Automatically generating Final Resume from top matches with {model_choice}...")
+                            auto_selected_repos = [m['repository_name'] for m in st.session_state.match_results[:max_projects]]
+                            st.session_state.selected_for_resume = auto_selected_repos
+                            
+                            oss_contribs = mcp.call("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
+                            selected_profiles = [rp for rp in st.session_state.repository_profiles if rp['name'] in auto_selected_repos]
+                            
+                            resume = mcp.call("generate_resume", {
+                                "profile_dict": st.session_state.github_metadata["profile"],
+                                "selected_repo_profiles": selected_profiles,
+                                "jd_profile_dict": st.session_state.jd_profile,
+                                "user_instructions": "Highlight the most relevant technical achievements.",
+                                "model_choice": model_choice,
+                                "oss_contributions": oss_contribs
+                            })
+                            resume["pages"] = pages
+                            st.session_state.resume_content = resume
+                            st.session_state.latex_code = latex.generate_latex(resume, "ATS Classic")
+                            
+                            status.update(label="✅ Analysis & Resume Generation Complete!", state="complete")
                         st.rerun()
                     except Exception as e:
                         handle_error(e)
 
 # --- Full Application View ---
 if st.session_state.match_results:
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📄 Resume", "📂 Projects", "🎯 Skill Gap", "📜 LaTeX"
+    tab1, tab2, tab3 = st.tabs([
+        "📄 Resume", "📂 Projects", "🎯 Skill Gap"
     ])
 
     # --- 1. RESUME TAB ---
     with tab1:
-        if "Full Analysis" in st.session_state.analysis_mode:
-            st.success("Resume automatically generated from the top matched repositories.")
-            
-        else:
-            st.markdown("### Select Projects for Resume")
-            
-            # We need a form or states to hold selected repos
-            if "selected_for_resume" not in st.session_state:
-                st.session_state.selected_for_resume = [m['repository_name'] for m in st.session_state.match_results[:max_projects]]
-                
-            selected_repos = []
-            for mr in st.session_state.match_results:
-                repo_name = mr['repository_name']
-                meta = get_repo_meta(repo_name)
-                prof = get_repo_profile(repo_name)
-                
-                col1, col2 = st.columns([0.05, 0.95])
-                with col1:
-                    is_sel = st.checkbox("Select Project", key=f"res_sel_{repo_name}", value=(repo_name in st.session_state.selected_for_resume), label_visibility="collapsed")
-                    if is_sel:
-                        selected_repos.append(repo_name)
-                with col2:
-                    stars = meta.get('stars', 0)
-                    score = int(mr['overall_score'] * 100)
-                    desc = prof.get('one_line_summary', '')
-                    matched_set = {x.lower() for x in mr.get('matched_skills', [])}
-                    skills_html = ""
-                    for s in prof.get('primary_skills', [])[:5]:
-                        if s.lower() in matched_set:
-                            skills_html += f"<span class='badge-matched' style='margin: 0 2px 2px 0; padding: 2px 6px; font-size: 0.75rem; display: inline-block;'>{html_lib.escape(s)}</span>"
-                        else:
-                            skills_html += f"<span class='tag'>{html_lib.escape(s)}</span>"
-                    
-                    card_html = f"""
-                    <div class='proj-card' style='margin-bottom: 5px; padding: 0.8rem 1rem;'>
-                        <div class='proj-header'>
-                            <strong style='font-size:1.1rem; color:#E6EDF3;'>{html_lib.escape(repo_name)}</strong>
-                            <div>
-                                <span class='proj-stars'>⭐ {stars}</span>
-                                <span class='proj-match'>⚡ {score}% Match</span>
-                            </div>
-                        </div>
-                        <div style='color:#8B949E; font-size:0.85rem; margin-bottom:6px;'>{html_lib.escape(desc)}</div>
-                        <div>{skills_html}</div>
-                    </div>
-                    """
-                    st.markdown(card_html, unsafe_allow_html=True)
-                    
-            st.markdown("### Generate")
-            instructions = st.text_area("Custom Instructions (Optional)", placeholder="e.g. Focus on backend...")
-            include_oss = st.checkbox("Include Open Source Contributions (excluding your own repos)", value=True)
-            
-            if st.button("Generate Final Resume", type="primary"):
-                st.session_state.selected_for_resume = selected_repos
-                oss_contribs = []
-                if include_oss:
-                    with st.spinner("Analyzing your external PRs for OSS Contributions..."):
-                        oss_contribs = mcp.call("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
-                        
-                with st.spinner("Generating Resume Content..."):
+        if "selected_for_resume" not in st.session_state:
+            st.session_state.selected_for_resume = [m['repository_name'] for m in st.session_state.match_results[:max_projects]]
+
+        with st.expander("🛠️ Custom Instructions & Regeneration", expanded=False):
+            instructions = st.text_area("Custom Instructions (Optional)", placeholder="e.g. Focus on backend...", key="res_instructions")
+            include_oss = st.checkbox("Include Open Source Contributions", value=True, key="res_include_oss")
+            if st.button("Regenerate Resume", type="primary", key="res_regenerate_btn"):
+                with st.spinner("Regenerating Resume..."):
+                    selected_repos = st.session_state.selected_for_resume
                     selected_profiles = [rp for rp in st.session_state.repository_profiles if rp['name'] in selected_repos]
                     
+                    oss_contribs = []
+                    if include_oss:
+                        oss_contribs = mcp.call("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
+                        
                     resume = mcp.call("generate_resume", {
                         "profile_dict": st.session_state.github_metadata["profile"],
                         "selected_repo_profiles": selected_profiles,
@@ -372,14 +386,14 @@ if st.session_state.match_results:
                         "oss_contributions": oss_contribs
                     })
                     resume["pages"] = pages
-                    
                     st.session_state.resume_content = resume
                     st.session_state.latex_code = latex.generate_latex(resume, "ATS Classic")
-                    
+                st.rerun()
+
         if st.session_state.resume_content:
             data = st.session_state.resume_content
-            st.markdown("## Final Resume Preview")
             
+            # Construct HTML
             html = "<div class='resume-preview'>"
             html += f"<div class='resume-name'>{data['profile']['name']}</div>"
             
@@ -391,6 +405,15 @@ if st.session_state.match_results:
             
             html += f"<div class='resume-contact'>{' • '.join(contact_items)}</div>"
             html += f"<div class='resume-section-title'>Summary</div><div style='margin-bottom:8px'>{data.get('summary', '')}</div>"
+            
+            if data.get("skills_section"):
+                html += "<div class='resume-section-title'>Technical Skills</div>"
+                skills_items = []
+                for cat, items in data["skills_section"].items():
+                    if items:
+                        skills_items.append(f"<div style='margin-bottom:4px;'><b>{html_lib.escape(cat)}:</b> {html_lib.escape(', '.join(items))}</div>")
+                html += "".join(skills_items)
+                html += "<div style='margin-bottom:10px;'></div>"
             
             html += "<div class='resume-section-title'>Projects</div>"
             for proj in data.get("projects", []):
@@ -410,7 +433,33 @@ if st.session_state.match_results:
                     html += f"<div style='font-style:italic; margin-bottom:2px; font-size: 0.9em;'>{oss.get('desc', '')}</div>"
                     
             html += "</div>"
-            st.markdown(html, unsafe_allow_html=True)
+            
+            # Toggle between Resume Preview and LaTeX Source
+            view_mode = st.radio(
+                "Select View Mode",
+                ["📄 Resume Preview", "📜 LaTeX Source"],
+                horizontal=True,
+                label_visibility="collapsed",
+                key="resume_view_mode"
+            )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            if "Resume Preview" in view_mode:
+                st.markdown("## 📄 Resume Preview")
+                st.markdown(html, unsafe_allow_html=True)
+            else:
+                st.markdown("## 📜 LaTeX Source Code")
+                if st.session_state.latex_code:
+                    st.code(st.session_state.latex_code, language="latex")
+                    st.download_button(
+                        label="⬇️ Download .tex",
+                        data=st.session_state.latex_code,
+                        file_name="resume.tex",
+                        mime="text/plain",
+                        use_container_width=True,
+                        key="res_download_tex"
+                    )
 
     # --- 2. PROJECTS TAB ---
     with tab2:
@@ -431,15 +480,11 @@ if st.session_state.match_results:
             </div>
             <div class='metric-card'>
                 <div class='metric-value'>{avg_match:.0f}%</div>
-                <div class='metric-label'>Average Match</div>
-            </div>
-            <div class='metric-card'>
-                <div class='metric-value'>{len(gap['matched_skills'])}</div>
-                <div class='metric-label'>Matched Skills</div>
+                <div class='metric-label'>Avg Match</div>
             </div>
             <div class='metric-card'>
                 <div class='metric-value'>{len(gap['missing_skills'])}</div>
-                <div class='metric-label'>Missing Skills</div>
+                <div class='metric-label'>Skill Gaps</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -546,7 +591,8 @@ if st.session_state.match_results:
         st.markdown("### Overall Matched Skills")
         st.markdown(generate_badges(gap['matched_skills'], "badge-matched"), unsafe_allow_html=True)
         
-        st.markdown("<br>### Overall Missing Skills", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("### Overall Missing Skills")
         missing_names = [m['skill'] if isinstance(m, dict) else m for m in gap['missing_skills']]
         st.markdown(generate_badges(missing_names, "badge-missing"), unsafe_allow_html=True)
         
@@ -564,17 +610,3 @@ if st.session_state.match_results:
                 <div class='learn-tip'>{html_lib.escape(rec)}</div>
             </div>
             """, unsafe_allow_html=True)
-
-    # --- 4. LATEX SOURCE ---
-    with tab4:
-        if st.session_state.latex_code:
-            st.code(st.session_state.latex_code, language="latex")
-            st.download_button(
-                label="⬇️ Download .tex",
-                data=st.session_state.latex_code,
-                file_name="resume.tex",
-                mime="text/plain",
-                use_container_width=True,
-            )
-        else:
-            st.info("Generate the resume in the Resume tab first.")

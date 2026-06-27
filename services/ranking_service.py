@@ -18,11 +18,24 @@ def compute_overall_skill_gap(match_results: List[MatchResult], jd_required_skil
                 evidence_map[skill] = match.evidence[skill]
                 
     missing = []
-    matched = list(all_matched_skills)
     
+    # Case-insensitive comparison for matching
+    matched_skills_lower = {s.lower() for s in all_matched_skills}
+    
+    # Standardize cased matched skills based on the Job Description's casing
+    matched = []
     for skill in jd_required_skills:
-        if skill not in all_matched_skills:
-            # We can expand this to use LLM to find related skills or recommend projects
+        if skill.lower() in matched_skills_lower:
+            matched.append(skill)
+            
+    # Include any cased matched skills that were not in the JD (if any)
+    jd_skills_lower = {s.lower() for s in jd_required_skills}
+    for skill in all_matched_skills:
+        if skill.lower() not in jd_skills_lower and skill not in matched:
+            matched.append(skill)
+            
+    for skill in jd_required_skills:
+        if skill.lower() not in matched_skills_lower:
             missing.append(SkillMatch(
                 skill=skill,
                 is_matched=False,

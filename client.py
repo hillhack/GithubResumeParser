@@ -10,6 +10,16 @@ class ResumeMCPClient:
             os.environ["GROQ_API_KEY"] = payload.get("groq_api_key")
         if payload.get("gemini_api_key"):
             os.environ["GEMINI_API_KEY"] = payload.get("gemini_api_key")
+        if payload.get("github_token"):
+            os.environ["GITHUB_TOKEN"] = payload.get("github_token")
+            
+        # Fallback to environment variables if not present in payload
+        if not payload.get("github_token") and os.environ.get("GITHUB_TOKEN"):
+            payload["github_token"] = os.environ.get("GITHUB_TOKEN")
+        if not payload.get("groq_api_key") and os.environ.get("GROQ_API_KEY"):
+            payload["groq_api_key"] = os.environ.get("GROQ_API_KEY")
+        if not payload.get("gemini_api_key") and os.environ.get("GEMINI_API_KEY"):
+            payload["gemini_api_key"] = os.environ.get("GEMINI_API_KEY")
             
         if tool_name == "extract_github_metadata":
             return extract_github_metadata(
