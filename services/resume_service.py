@@ -30,10 +30,10 @@ Candidate Project Profile:
 {repo.model_dump_json()}
 
 Follow these strict rules:
-1. Write exactly 3 highly professional, extremely concise, punchy bullet points (maximum 15-20 words per bullet; not 4, exactly 3). Start each bullet point with a strong action verb. Highlight the specific feature built, technical problem solved, and measurable engineering impact.
-2. Provide a single, complete, well-formed sentence (about 15-25 words, spanning a full line) describing the project's core purpose, domain, and architecture. It should feel substantive and complete, not just a few words.
+1. Write exactly 3 highly professional, extremely concise, punchy bullet points (maximum 15-20 words per bullet; not 4, exactly 3). Start each bullet point with a strong action verb, describing HOW you solved the problem (specific features, engineering choices) in a direct, to-the-point manner.
+2. Provide a single, complete, well-formed sentence (about 15-25 words, spanning a full line) describing the project's core purpose, the specific problem it solves, and the high-level architecture.
 3. Filter the tech stack to ONLY include technologies relevant to the Job Description skills above, plus 1 or 2 core defining technologies of the project. Keep the total tech stack list to 5-8 items maximum.
-CRITICAL: Explicitly incorporate the 'domain', 'key_features', and 'architecture_patterns' into your bullet points, but keep them extremely brief. Do not make up info.
+CRITICAL: Explicitly incorporate the 'domain', 'key_features', and 'architecture_patterns' into your bullet points, but keep them extremely brief and to the point. Do not make up info.
 
 Return ONLY JSON:
 {{
