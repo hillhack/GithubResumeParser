@@ -60,12 +60,13 @@ class ResumeMCPClient:
             
         if tool_name == "generate_resume":
             return generate_resume(
-                payload.get("profile_dict", {}),
-                payload.get("selected_repo_profiles", []),
-                payload.get("jd_profile_dict", {}),
-                payload.get("user_instructions", ""),
-                payload.get("model_choice", "Groq"),
-                payload.get("oss_contributions", [])
+                profile_dict=payload.get("profile_dict", {}),
+                selected_repo_profiles=payload.get("selected_repo_profiles", []),
+                jd_profile_dict=payload.get("jd_profile_dict", {}),
+                user_instructions=payload.get("user_instructions", ""),
+                match_results=payload.get("match_results"),
+                model_choice=payload.get("model_choice", "Groq"),
+                oss_contributions=payload.get("oss_contributions", [])
             )
             
         raise ValueError(f"Unsupported tool: {tool_name}")

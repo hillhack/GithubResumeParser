@@ -103,7 +103,8 @@ def match_repositories(repo_profiles: list, jd_profile: dict, raw_repos: list = 
         matches.append(match_res)
         
     ranked = rank_matches(matches)
-    jd_all_requirements = jd.required_skills + jd.preferred_skills + jd.tools + jd.frameworks + jd.libraries + jd.soft_skills
+    # We explicitly exclude soft_skills from the overall gap because they cannot be reliably proven by code repositories
+    jd_all_requirements = jd.required_skills + jd.preferred_skills + jd.tools + jd.frameworks + jd.libraries
     overall_gap = compute_overall_skill_gap(ranked, jd_all_requirements)
     
     return {

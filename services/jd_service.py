@@ -26,6 +26,10 @@ Return a JSON object exactly matching this structure (do not use markdown format
     "keywords": ["..."],
     "responsibilities": ["..."]
 }}
+
+CRITICAL RULES:
+1. ONLY extract hard technical skills (programming languages, frameworks, cloud services, databases, specific ML algorithms, etc.) for `required_skills` and `preferred_skills`.
+2. DO NOT include ANY soft skills, personality traits, or vague behavioral abilities (e.g., "curiosity", "problem-solving", "analytical thinking", "passion for learning", "ability to investigate") in `required_skills` or `preferred_skills`. Put those EXCLUSIVELY in `soft_skills`.
 """
     
     sys_prompt = "You are an expert technical recruiter and requirements analyst. Extract the core requirements accurately. Output ONLY valid JSON."
