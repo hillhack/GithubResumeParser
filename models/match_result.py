@@ -16,6 +16,7 @@ class MatchResult(BaseModel):
     missing_skills: List[str] = []
     matched_libraries: List[str] = []
     matched_frameworks: List[str] = []
+    matched_tools: List[str] = []
     matched_domain: str = ""
     matched_keywords: List[str] = []
 
@@ -26,7 +27,7 @@ class MatchResult(BaseModel):
             for k, v in data.items():
                 if isinstance(v, str) and k in [
                     "matched_skills", "missing_skills", "matched_libraries",
-                    "matched_frameworks", "matched_keywords"
+                    "matched_frameworks", "matched_tools", "matched_keywords"
                 ]:
                     if v.lower() in ["n/a", "none", "null", "", "false"]:
                         data[k] = []

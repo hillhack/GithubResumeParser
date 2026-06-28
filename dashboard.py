@@ -530,7 +530,7 @@ if st.session_state.match_results:
             skill_match = min(100, int(len(mr.get('matched_skills', [])) / max(1, total_skills) * 100))
             
             jd_tech = jd.get('tools', []) + jd.get('frameworks', []) + jd.get('libraries', [])
-            repo_tech = mr.get('matched_libraries', []) + mr.get('matched_frameworks', [])
+            repo_tech = mr.get('matched_libraries', []) + mr.get('matched_frameworks', []) + mr.get('matched_tools', [])
             if jd_tech:
                 tech_match = min(100, int(len(repo_tech) / len(jd_tech) * 100))
             else:

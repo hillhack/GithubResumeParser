@@ -40,6 +40,7 @@ Return ONLY a JSON object:
     "missing_skills": ["..."],
     "matched_libraries": ["..."],
     "matched_frameworks": ["..."],
+    "matched_tools": ["..."],
     "matched_domain": "...",
     "matched_keywords": ["..."],
     "evidence": {{"skill_name": "evidence sentence..."}},
@@ -55,6 +56,19 @@ Return ONLY a JSON object:
     matched_skills = parsed.get("matched_skills", [])
     missing_skills = parsed.get("missing_skills", [])
     evidence = parsed.get("evidence", {})
+    
+    # Ensure all JD skills are evaluated by the fallback mechanism
+    all_jd_skills = (
+        jd_profile.required_skills + 
+        jd_profile.preferred_skills + 
+        jd_profile.tools + 
+        jd_profile.frameworks + 
+        jd_profile.libraries
+    )
+    for jd_skill in all_jd_skills:
+        if jd_skill not in matched_skills and jd_skill not in missing_skills:
+            missing_skills.append(jd_skill)
+
     
     # Post-process to prevent false-negative missing skills
     readme_lower = readme_text.lower()
@@ -72,6 +86,18 @@ Return ONLY a JSON object:
             parts = skill_lower.replace(")", "").split("(")
             variations.extend([p.strip() for p in parts if p.strip()])
             
+        # Add singular/plural variations and hyphen replacements
+        extended_vars = []
+        for v in variations:
+            if v.endswith("s"):
+                extended_vars.append(v[:-1])
+            else:
+                extended_vars.append(v + "s")
+            if "-" in v:
+                extended_vars.append(v.replace("-", " "))
+        variations.extend(extended_vars)
+        variations = list(set(variations))
+        
         found_in_readme = any(var in readme_lower for var in variations)
         found_in_profile = any(var in src or src in var for var in variations for src in profile_sources)
         
@@ -93,6 +119,7 @@ Return ONLY a JSON object:
         missing_skills=still_missing,
         matched_libraries=parsed.get("matched_libraries", []),
         matched_frameworks=parsed.get("matched_frameworks", []),
+        matched_tools=parsed.get("matched_tools", []),
         matched_domain=str(parsed.get("matched_domain", "")),
         matched_keywords=parsed.get("matched_keywords", []),
         evidence=evidence,
