@@ -200,6 +200,8 @@ if not st.session_state.match_results:
             else:
                 st.session_state.username = username
                 try:
+                    st.session_state.match_results = None
+                    st.session_state.overall_skill_gap = None
                     st.session_state.resume_content = None
                     st.session_state.latex_code = None
                     with st.status("Running Full Analysis...", expanded=True) as status:
@@ -322,6 +324,8 @@ if not st.session_state.match_results:
                     st.warning("Please select at least one repository.")
                 else:
                     try:
+                        st.session_state.match_results = None
+                        st.session_state.overall_skill_gap = None
                         st.session_state.resume_content = None
                         st.session_state.latex_code = None
                         with st.status("Running Quick Analysis...", expanded=True) as status:
