@@ -102,8 +102,8 @@ def match_repositories(repo_profiles: list, jd_profile: dict, raw_repos: list = 
         match_res = match_repository_to_jd(repo_prof, jd, readme_text, model_choice)
         matches.append(match_res)
         
-    ranked = rank_matches(matches)
-    overall_gap = compute_overall_skill_gap(ranked, jd.required_skills + jd.preferred_skills)
+    jd_all_requirements = jd.required_skills + jd.preferred_skills + jd.tools + jd.frameworks + jd.libraries + jd.soft_skills
+    overall_gap = compute_overall_skill_gap(ranked, jd_all_requirements)
     
     return {
         "ranked_matches": [m.model_dump() for m in ranked],
@@ -114,7 +114,7 @@ def extract_oss(username: str, model_choice: str = "Groq", token: str = None) ->
     """Step: Extract OSS Contributions from external merged PRs."""
     return extract_oss_contributions(username, token, model_choice)
 
-def generate_resume(profile_dict: dict, selected_repo_profiles: list, jd_profile_dict: dict, user_instructions: str, model_choice: str = "Groq", oss_contributions: list = None) -> dict:
+def generate_resume(profile_dict: dict, selected_repo_profiles: list, jd_profile_dict: dict, user_instructions: str, match_results: list = None, model_choice: str = "Groq", oss_contributions: list = None) -> dict:
     """Step 9: Generate final resume."""
     from models.candidate import CandidateProfile
     
@@ -122,7 +122,7 @@ def generate_resume(profile_dict: dict, selected_repo_profiles: list, jd_profile
     repos = [RepositoryProfile(**r) for r in selected_repo_profiles]
     jd = JobDescriptionProfile(**jd_profile_dict)
     
-    resume = generate_resume_content(cand, repos, jd, user_instructions, model_choice)
+    resume = generate_resume_content(cand, repos, jd, match_results=match_results, user_instructions=user_instructions, model_choice=model_choice)
     if oss_contributions:
         resume["contributions"] = oss_contributions
     return resume

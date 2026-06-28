@@ -252,6 +252,7 @@ if not st.session_state.match_results:
                             "profile_dict": st.session_state.github_metadata["profile"],
                             "selected_repo_profiles": selected_profiles,
                             "jd_profile_dict": st.session_state.jd_profile,
+                            "match_results": st.session_state.match_results,
                             "user_instructions": "Highlight the most relevant technical achievements.",
                             "model_choice": model_choice,
                             "oss_contributions": oss_contribs
@@ -362,6 +363,7 @@ if not st.session_state.match_results:
                                 "profile_dict": st.session_state.github_metadata["profile"],
                                 "selected_repo_profiles": selected_profiles,
                                 "jd_profile_dict": st.session_state.jd_profile,
+                                "match_results": st.session_state.match_results,
                                 "user_instructions": "Highlight the most relevant technical achievements.",
                                 "model_choice": model_choice,
                                 "oss_contributions": oss_contribs
@@ -402,6 +404,7 @@ if st.session_state.match_results:
                         "profile_dict": st.session_state.github_metadata["profile"],
                         "selected_repo_profiles": selected_profiles,
                         "jd_profile_dict": st.session_state.jd_profile,
+                        "match_results": st.session_state.match_results,
                         "user_instructions": instructions,
                         "model_choice": model_choice,
                         "oss_contributions": oss_contribs

@@ -12,7 +12,8 @@ def compute_overall_skill_gap(match_results: List[MatchResult], jd_required_skil
     evidence_map = {}
     
     for match in match_results:
-        for skill in match.matched_skills:
+        all_matched = match.matched_skills + match.matched_tools + match.matched_frameworks + match.matched_libraries + match.matched_keywords
+        for skill in all_matched:
             all_matched_skills.add(skill)
             if skill not in evidence_map and skill in match.evidence:
                 evidence_map[skill] = match.evidence[skill]

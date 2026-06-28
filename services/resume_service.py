@@ -9,6 +9,7 @@ def generate_resume_content(
     profile: CandidateProfile,
     selected_repos: list[RepositoryProfile],
     jd_profile: JobDescriptionProfile,
+    match_results: list[dict] = None,
     user_instructions: str = "",
     model_choice: str = "Groq"
 ) -> dict:
@@ -19,18 +20,26 @@ def generate_resume_content(
     for repo in selected_repos:
         sys_override = f"\n\nCRITICAL USER INSTRUCTIONS:\n{user_instructions}" if user_instructions else ""
         
+        # Find matching MatchResult if available
+        repo_match_info = ""
+        if match_results:
+            for mr in match_results:
+                if mr.get("repository_name") == repo.name:
+                    repo_match_info = f"\nSkills this repo successfully matched from JD:\n{', '.join(mr.get('matched_skills', []))}\nEvidence: {json.dumps(mr.get('evidence', {}))}\n"
+                    break
+        
         prompt = f"""Write resume bullet points for this GitHub project.
 Target Role: {jd_profile.role}
 Domain: {jd_profile.domain}
 
 Job Description Required Skills: {', '.join(jd_profile.required_skills)}
 Job Description Preferred Skills: {', '.join(jd_profile.preferred_skills)}
-
+{repo_match_info}
 Candidate Project Profile:
 {repo.model_dump_json()}
 
 Follow these strict rules:
-1. Write exactly 3 highly professional, extremely concise, punchy bullet points (maximum 15-20 words per bullet; not 4, exactly 3). Start each bullet point with a strong action verb, describing HOW you solved the problem (specific features, engineering choices) in a direct, to-the-point manner.
+1. Write exactly 3 highly professional, extremely concise, punchy bullet points (maximum 15-20 words per bullet; not 4, exactly 3). Start each bullet point with a strong action verb, describing HOW you solved the problem (specific features, engineering choices) in a direct, to-the-point manner. Ensure you highlight the matched skills and evidence provided.
 2. Provide a single, complete, well-formed sentence (about 15-25 words, spanning a full line) describing the project's core purpose, the specific problem it solves, and the high-level architecture.
 3. Filter the tech stack to ONLY include technologies relevant to the Job Description skills above, plus 1 or 2 core defining technologies of the project. Keep the total tech stack list to 5-8 items maximum.
 CRITICAL: Explicitly incorporate the 'domain', 'key_features', and 'architecture_patterns' into your bullet points, but keep them extremely brief and to the point. Do not make up info.
