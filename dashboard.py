@@ -268,8 +268,8 @@ if not st.session_state.match_results:
     
     else:
         # Quick Analysis Flow
-        st.markdown("### Quick Analysis Setup")
-        username = st.text_input("GitHub Username", value=st.session_state.username, placeholder="e.g. torvalds", key="quick_user")
+        st.markdown("<span class='input-label'>GitHub Username</span>", unsafe_allow_html=True)
+        username = st.text_input("GitHub Username", value=st.session_state.username, placeholder="e.g. torvalds", key="quick_user", label_visibility="collapsed")
         
         if st.button("Fetch GitHub Metadata"):
             if username:
@@ -279,18 +279,20 @@ if not st.session_state.match_results:
                             "username": username, 
                             "model_choice": model_choice
                         })
-                        st.session_state.github_metadata = res["dashboard"]
-                        st.session_state.raw_repos = res["raw_repos"]
-                        st.session_state.username = username
+                        if not res.get("raw_repos"):
+                            st.warning(f"No public repositories found for GitHub user '{username}'. Please check the username spelling.")
+                            st.session_state.github_metadata = None
+                            st.session_state.raw_repos = []
+                        else:
+                            st.session_state.github_metadata = res["dashboard"]
+                            st.session_state.raw_repos = res["raw_repos"]
+                            st.session_state.username = username
                         st.rerun()
                 except Exception as e:
                     handle_error(e)
     
         if st.session_state.github_metadata and not st.session_state.repository_profiles:
-            meta = st.session_state.github_metadata
-            prof = meta["profile"]
-            st.markdown(f"## {prof['name'] or prof['username']}")
-            st.markdown("### Select Repositories for Analysis")
+            st.markdown("<br><span class='input-label'>Select Repositories for Analysis</span>", unsafe_allow_html=True)
             if "quick_selected_repos" not in st.session_state:
                 st.session_state.quick_selected_repos = [r["metadata"]["name"] for r in st.session_state.raw_repos[:max_projects]]
 
@@ -310,8 +312,8 @@ if not st.session_state.match_results:
             
             st.session_state.quick_selected_repos = selected_repos
             
-            st.markdown("### Job Description Matching")
-            jd_text = st.text_area("Paste Job Description", height=150)
+            st.markdown("<br><span class='input-label'>Job Description Matching</span>", unsafe_allow_html=True)
+            jd_text = st.text_area("Paste Job Description", height=150, label_visibility="collapsed")
             
             if st.button("Run Pipeline on Selected Repos", type="primary"):
                 if not jd_text:
