@@ -195,8 +195,13 @@ if not st.session_state.match_results:
         jd_text = st.text_area("Job Description", height=150, placeholder="Paste JD here...")
     
         if st.button("🚀 Run Full Pipeline"):
-            if not username or not jd_text:
-                st.warning("Please provide both a GitHub username and a Job Description.")
+            missing_key = ("Groq" in model_choice and not st.session_state.get("groq_api_key") and not os.environ.get("GROQ_API_KEY")) or \
+                          ("Gemini" in model_choice and not st.session_state.get("gemini_api_key") and not os.environ.get("GEMINI_API_KEY"))
+            
+            if missing_key:
+                st.warning(f"⚠️ Please enter your {model_choice.split()[0]} API Key in the settings sidebar.")
+            elif not username or not jd_text:
+                st.warning("⚠️ Please provide both a GitHub username and a Job Description.")
             else:
                 st.session_state.username = username
                 try:
@@ -274,7 +279,12 @@ if not st.session_state.match_results:
         username = st.text_input("GitHub Username", value=st.session_state.username, placeholder="e.g. torvalds", key="quick_user", label_visibility="collapsed")
         
         if st.button("Fetch GitHub Metadata"):
-            if username:
+            missing_key = ("Groq" in model_choice and not st.session_state.get("groq_api_key") and not os.environ.get("GROQ_API_KEY")) or \
+                          ("Gemini" in model_choice and not st.session_state.get("gemini_api_key") and not os.environ.get("GEMINI_API_KEY"))
+            
+            if missing_key:
+                st.warning(f"⚠️ Please enter your {model_choice.split()[0]} API Key in the settings sidebar.")
+            elif username:
                 try:
                     with st.spinner("Extracting Profile & Repository Metadata..."):
                         res = mcp.call("extract_github_metadata", {
@@ -318,10 +328,15 @@ if not st.session_state.match_results:
             jd_text = st.text_area("Paste Job Description", height=150, label_visibility="collapsed")
             
             if st.button("Run Pipeline on Selected Repos", type="primary"):
-                if not jd_text:
-                    st.warning("Please provide a Job Description.")
+                missing_key = ("Groq" in model_choice and not st.session_state.get("groq_api_key") and not os.environ.get("GROQ_API_KEY")) or \
+                              ("Gemini" in model_choice and not st.session_state.get("gemini_api_key") and not os.environ.get("GEMINI_API_KEY"))
+                
+                if missing_key:
+                    st.warning(f"⚠️ Please enter your {model_choice.split()[0]} API Key in the settings sidebar.")
+                elif not jd_text:
+                    st.warning("⚠️ Please provide a Job Description.")
                 elif not selected_repos:
-                    st.warning("Please select at least one repository.")
+                    st.warning("⚠️ Please select at least one repository.")
                 else:
                     try:
                         st.session_state.match_results = None
