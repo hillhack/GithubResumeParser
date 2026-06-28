@@ -385,6 +385,14 @@ if not st.session_state.match_results:
 
 # --- Full Application View ---
 if st.session_state.match_results:
+    col1, col2 = st.columns([0.85, 0.15])
+    with col2:
+        if st.button("🏠 New Analysis", use_container_width=True, type="secondary"):
+            st.session_state.clear()
+            for k, v in INITIAL_STATE.items():
+                st.session_state[k] = v
+            st.rerun()
+
     tab1, tab2, tab3 = st.tabs([
         "📄 Resume", "📂 Projects", "🎯 Skill Gap"
     ])
