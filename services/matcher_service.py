@@ -26,8 +26,8 @@ Provide brief evidence sentences for the matches based on the repository data.
 
 CRITICAL RULES FOR SKILL MATCHING:
 1. Be extremely strict. A skill from the Job Description should ONLY be listed in `matched_skills` if there is clear, direct evidence in the repository profile or the README that the candidate actually used, implemented, or demonstrated it in this specific project.
-2. Do NOT make broad assumptions or loose semantic leaps. For example, do not assume they know "Machine Learning fundamentals and algorithms" just because the project uses an LLM API, or that they have a "research-oriented mindset" without concrete research activities documented.
-3. Before finalizing the `missing_skills` array, you MUST verify if the skill is mentioned anywhere in the README snippet. Do NOT list a skill as missing if it exists in the README!
+2. Do NOT make broad assumptions (e.g., using an LLM API does not mean they know ML algorithms from scratch). HOWEVER, you MUST recognize standard industry synonyms and specific implementations (e.g., building 'agents' or using 'Model Context Protocol' is direct evidence of 'Agentic AI systems'; using 'React' is evidence of 'Frontend Development').
+3. Before finalizing the `missing_skills` array, you MUST verify if the skill or its direct synonyms are mentioned anywhere in the README snippet. Do NOT list a skill as missing if it exists in the README!
 
 === README Snippet ===
 {(readme_text or "No README provided")[:3000]}
