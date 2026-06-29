@@ -228,13 +228,17 @@ def handle_error(e):
     elif "huggingface" in error_msg_lower or "hf_token" in error_msg_lower or "hugging face" in error_msg_lower:
         st.error(f"🚨 **Hugging Face Rate Limit Exhausted!**\n\nYou have hit the anonymous rate limit.\n\n**How to fix:**\n1. **Add an HF Token** in the sidebar settings to get a much larger quota.\n2. **Switch to Google Gemini**, which has a large free tier.")
         
+    elif "is not set" in error_msg_lower and ("key" in error_msg_lower or "token" in error_msg_lower):
+        st.warning(f"🔑 **Missing API Key**\n\n{error_msg}")
+        
     else:
         st.error(f"🚨 **Application Error**\n\nAn unexpected error occurred during execution:\n\n**Details**: `{error_msg}`\n\n```python\n{traceback.format_exc()}\n```")
 
 # ── Header / Analysis Inputs ─────────────────────────────────────
 show_results = st.session_state.match_results is not None
 
-with st.expander("🔍 Configure & Run Analysis", expanded=True):
+st.markdown("### 🔍 Configure & Run Analysis")
+with st.container():
     st.markdown("<span class='input-label'>Analysis Mode</span>", unsafe_allow_html=True)
     analysis_mode = st.radio(
         "Analysis Mode",
