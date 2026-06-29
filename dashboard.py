@@ -467,14 +467,6 @@ with st.expander("🔍 Configure & Run Analysis", expanded=True):
 
 # --- Full Application View ---
 if st.session_state.match_results:
-    col1, col2 = st.columns([0.85, 0.15])
-    with col2:
-        if st.button("🔄 Reset Analysis", use_container_width=True, type="secondary"):
-            st.session_state.clear()
-            for k, v in INITIAL_STATE.items():
-                st.session_state[k] = v
-            st.rerun()
-
     tab1, tab2, tab3, tab4 = st.tabs([
         "📄 Resume", "📂 Projects", "🎯 Skill Gap", "📋 Job Description"
     ])
@@ -555,23 +547,17 @@ if st.session_state.match_results:
             html += "</div>"
             
             # Toggle between Resume Preview and LaTeX Source
-            view_mode = st.radio(
-                "Select View Mode",
-                ["📄 Resume Preview", "📜 LaTeX Source"],
-                horizontal=True,
-                label_visibility="collapsed",
-                key="resume_view_mode"
-            )
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            if "Resume Preview" in view_mode:
-                st.markdown("## 📄 Resume Preview")
-                st.markdown(html, unsafe_allow_html=True)
-            else:
-                st.markdown("## 📜 LaTeX Source Code")
+            col_view, col_dl = st.columns([0.7, 0.3])
+            with col_view:
+                view_mode = st.radio(
+                    "Select View Mode",
+                    ["📄 Preview", "📜 LaTeX Source"],
+                    horizontal=True,
+                    label_visibility="collapsed",
+                    key="resume_view_mode"
+                )
+            with col_dl:
                 if st.session_state.latex_code:
-                    st.code(st.session_state.latex_code, language="latex")
                     st.download_button(
                         label="⬇️ Download .tex",
                         data=st.session_state.latex_code,
@@ -580,6 +566,14 @@ if st.session_state.match_results:
                         use_container_width=True,
                         key="res_download_tex"
                     )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            if "Preview" in view_mode:
+                st.markdown(html, unsafe_allow_html=True)
+            else:
+                if st.session_state.latex_code:
+                    st.code(st.session_state.latex_code, language="latex")
 
     # --- 2. PROJECTS TAB ---
     with tab2:
