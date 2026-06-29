@@ -33,9 +33,9 @@ INITIAL_STATE = {
     "latex_code": None,
     "username": "",
     "analysis_mode": "Full Analysis (Scan all repositories)",
-    "groq_api_key": os.environ.get("GROQ_API_KEY", ""),
-    "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
-    "github_token": os.environ.get("GITHUB_TOKEN", "")
+    "groq_api_key": "",
+    "gemini_api_key": "",
+    "github_token": ""
 }
 
 for k, v in INITIAL_STATE.items():
@@ -100,7 +100,7 @@ with st.sidebar:
             type="password",
             value=st.session_state.get("groq_api_key", ""),
             placeholder="Enter Groq API Key...",
-            help="Provide your own Groq API key to bypass limits.",
+            help="Provide your own Groq API key to override environment key.",
             label_visibility="collapsed"
         )
         if groq_key != st.session_state.get("groq_api_key", ""):
@@ -108,9 +108,17 @@ with st.sidebar:
             if groq_key:
                 os.environ["GROQ_API_KEY"] = groq_key
             else:
-                if "GROQ_API_KEY" in os.environ:
-                    del os.environ["GROQ_API_KEY"]
+                load_dotenv(override=True)
             st.rerun()
+            
+        # Display key status
+        if st.session_state.get("groq_api_key"):
+            st.markdown("<span style='color: #4CAF50; font-size: 0.8rem;'>✍️ Using manually entered API Key</span>", unsafe_allow_html=True)
+        elif os.environ.get("GROQ_API_KEY"):
+            st.markdown("<span style='color: #8B949E; font-size: 0.8rem;'>🔑 Using API Key from environment (.env)</span>", unsafe_allow_html=True)
+        else:
+            st.markdown("<span style='color: #FF9800; font-size: 0.8rem;'>⚠️ No API Key detected. Please enter one.</span>", unsafe_allow_html=True)
+            
         st.markdown("<small><a href='https://console.groq.com/keys' target='_blank'>Get free Groq API Key</a></small>", unsafe_allow_html=True)
     else:
         st.markdown("<span class='input-label'>Gemini API Key</span>", unsafe_allow_html=True)
@@ -119,7 +127,7 @@ with st.sidebar:
             type="password",
             value=st.session_state.get("gemini_api_key", ""),
             placeholder="Enter Gemini API Key...",
-            help="Provide your own Gemini API key to bypass limits.",
+            help="Provide your own Gemini API key to override environment key.",
             label_visibility="collapsed"
         )
         if gemini_key != st.session_state.get("gemini_api_key", ""):
@@ -127,9 +135,17 @@ with st.sidebar:
             if gemini_key:
                 os.environ["GEMINI_API_KEY"] = gemini_key
             else:
-                if "GEMINI_API_KEY" in os.environ:
-                    del os.environ["GEMINI_API_KEY"]
+                load_dotenv(override=True)
             st.rerun()
+            
+        # Display key status
+        if st.session_state.get("gemini_api_key"):
+            st.markdown("<span style='color: #4CAF50; font-size: 0.8rem;'>✍️ Using manually entered API Key</span>", unsafe_allow_html=True)
+        elif os.environ.get("GEMINI_API_KEY"):
+            st.markdown("<span style='color: #8B949E; font-size: 0.8rem;'>🔑 Using API Key from environment (.env)</span>", unsafe_allow_html=True)
+        else:
+            st.markdown("<span style='color: #FF9800; font-size: 0.8rem;'>⚠️ No API Key detected. Please enter one.</span>", unsafe_allow_html=True)
+            
         st.markdown("<small><a href='https://aistudio.google.com/app/apikey' target='_blank'>Get free Gemini API Key</a></small>", unsafe_allow_html=True)
 
     # Separate GitHub Token block
@@ -147,9 +163,17 @@ with st.sidebar:
         if gh_token:
             os.environ["GITHUB_TOKEN"] = gh_token
         else:
-            if "GITHUB_TOKEN" in os.environ:
-                del os.environ["GITHUB_TOKEN"]
+            load_dotenv(override=True)
         st.rerun()
+        
+    # Display token status
+    if st.session_state.get("github_token"):
+        st.markdown("<span style='color: #4CAF50; font-size: 0.8rem;'>✍️ Using manually entered Token</span>", unsafe_allow_html=True)
+    elif os.environ.get("GITHUB_TOKEN"):
+        st.markdown("<span style='color: #8B949E; font-size: 0.8rem;'>🔑 Using Token from environment (.env)</span>", unsafe_allow_html=True)
+    else:
+        st.markdown("<span style='color: #8B949E; font-size: 0.8rem;'>ℹ️ No GitHub Token detected (Rate limits may apply).</span>", unsafe_allow_html=True)
+        
     st.markdown("<small><a href='https://github.com/settings/tokens' target='_blank'>Create GitHub Personal Access Token</a></small>", unsafe_allow_html=True)
 
     
