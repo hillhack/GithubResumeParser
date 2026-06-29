@@ -20,7 +20,8 @@ class RepositoryMetadata(BaseModel):
 class RepositoryFiles(BaseModel):
     readme: Optional[str] = None
     detected_files: List[str] = []
-    file_contents: Dict[str, str] = {} # e.g. requirements.txt contents if needed
+    file_contents: Dict[str, str] = {}  # dependency file contents
+    detected_technologies: List[str] = []  # normalized tech from parsers
     
 class RepositoryProfile(BaseModel):
     name: str
@@ -48,6 +49,9 @@ class RepositoryProfile(BaseModel):
     keywords: List[str] = []
     tags: List[str] = []
     evidence_summary: str = ""
+    # LLM-generated resume content (stored at profile time, reused at resume generation)
+    resume_bullets: List[str] = []
+    impact: str = ""
 
     @model_validator(mode="before")
     @classmethod

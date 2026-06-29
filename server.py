@@ -57,24 +57,34 @@ def extract_github_metadata(username: str, token: str = None, model_choice: str 
     }
 
 def build_repository_profiles(username: str, raw_repos: list, selected_repo_names: list, model_choice: str = "Groq", token: str = None) -> dict:
-    """Step 2: Fully extracts knowledge for selected repositories."""
+    """Step 2: Fully extracts knowledge for selected repositories (with disk caching)."""
     from models.repository import Repository
-    
+    from utils.cache import get_repo_profile_cache, set_repo_profile_cache
+
     profiles = []
     updated_repos = []
-    
+
     for raw in raw_repos:
         repo = Repository(**raw)
         if repo.metadata.name in selected_repo_names:
-            # Deterministic extraction
+            # Check disk cache first — avoids redundant LLM calls on re-analysis
+            cached = get_repo_profile_cache(username, repo.metadata.name)
+            if cached:
+                profiles.append(cached)
+                updated_repos.append(raw)
+                continue
+
+            # Deterministic extraction (files, languages, dependency parsing)
             repo = extract_repository_files(username, repo, token)
-            # LLM Profile extraction
+            # LLM Profile extraction (README understanding)
             profile = generate_repository_profile(repo, model_choice)
-            profiles.append(profile.model_dump())
+            profile_dict = profile.model_dump()
+            set_repo_profile_cache(username, repo.metadata.name, profile_dict)
+            profiles.append(profile_dict)
             updated_repos.append(repo.model_dump())
         else:
             updated_repos.append(raw)
-            
+
     return {
         "profiles": profiles,
         "raw_repos": updated_repos
