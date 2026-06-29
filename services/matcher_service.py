@@ -190,6 +190,8 @@ Return ONLY a JSON object:
         + jd_profile.frameworks
         + jd_profile.libraries
         + jd_profile.methodologies
+        + jd_profile.keywords
+        + jd_profile.ats_keywords
     )
     for jd_skill in all_jd_skills:
         if jd_skill not in matched_skills and jd_skill not in missing_skills:

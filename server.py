@@ -124,6 +124,8 @@ def match_repositories(repo_profiles: list, jd_profile: dict, raw_repos: list = 
         + jd.frameworks
         + jd.libraries
         + jd.methodologies
+        + jd.keywords
+        + jd.ats_keywords
     )
     # Deduplicate while preserving order
     seen: set = set()

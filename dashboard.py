@@ -237,7 +237,6 @@ def handle_error(e):
 # ── Header / Analysis Inputs ─────────────────────────────────────
 show_results = st.session_state.match_results is not None
 
-st.markdown("### 🔍 Configure & Run Analysis")
 with st.container():
     st.markdown("<span class='input-label'>Analysis Mode</span>", unsafe_allow_html=True)
     analysis_mode = st.radio(
