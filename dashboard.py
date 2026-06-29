@@ -89,7 +89,7 @@ with st.sidebar:
         
     model_choice = st.selectbox(
         "LLM Provider",
-        ["Groq (Llama 3.3 70B)", "Google (Gemini 2.5 Flash)"],
+        ["Groq (Llama 3.3 70B)", "Google (Gemini 2.5 Flash)", "Hugging Face (Qwen 72B)"],
         index=default_model_idx, label_visibility="collapsed",
     )
     
@@ -121,6 +121,33 @@ with st.sidebar:
             st.markdown("<span style='color: #FF9800; font-size: 0.8rem;'>⚠️ No API Key detected. Please enter one.</span>", unsafe_allow_html=True)
             
         st.markdown("<small><a href='https://console.groq.com/keys' target='_blank'>Get free Groq API Key</a></small>", unsafe_allow_html=True)
+    elif "Hugging" in model_choice:
+        st.markdown("<span class='input-label'>Hugging Face Token (Optional)</span>", unsafe_allow_html=True)
+        hf_token = st.text_input(
+            "HF Token",
+            type="password",
+            value=st.session_state.get("hf_token", ""),
+            placeholder="Enter HF Token for higher limits...",
+            help="Provide your own Hugging Face token to override the default rate limits.",
+            label_visibility="collapsed"
+        )
+        if hf_token != st.session_state.get("hf_token", ""):
+            st.session_state.hf_token = hf_token
+            if hf_token:
+                os.environ["HF_TOKEN"] = hf_token
+            else:
+                load_dotenv(override=True)
+            st.rerun()
+            
+        # Display key status
+        if st.session_state.get("hf_token"):
+            st.markdown("<span style='color: #4CAF50; font-size: 0.8rem;'>✍️ Using manually entered HF Token</span>", unsafe_allow_html=True)
+        elif os.environ.get("HF_TOKEN"):
+            st.markdown("<span style='color: #8B949E; font-size: 0.8rem;'>🔑 Using HF Token from environment (.env)</span>", unsafe_allow_html=True)
+        else:
+            st.markdown("<span style='color: #4CAF50; font-size: 0.8rem;'>✓ Free tier active — no token required</span>", unsafe_allow_html=True)
+            
+        st.markdown("<small><a href='https://huggingface.co/settings/tokens' target='_blank'>Get free HF Token</a> (Slower results on free tier)</small>", unsafe_allow_html=True)
     else:
         st.markdown("<span class='input-label'>Gemini API Key</span>", unsafe_allow_html=True)
         gemini_key = st.text_input(
@@ -199,13 +226,16 @@ def handle_error(e):
         time_left = time_match.group(1) if time_match else "24 hours"
         st.error(f"🚨 **Groq Daily Token Limit Exhausted!**\n\nYour account has reached its daily limit because Full Analysis scans massive amounts of code.\n\n**How to fix:**\n1. Wait until your quota resets in **{time_left}**.\n2. Create a new Groq API key using a **different Google/GitHub account** and paste it in the Custom API Keys sidebar.\n3. **Switch the LLM Provider to Google Gemini**, which has a much larger free tier!")
         
-    elif "quota exceeded" in error_msg_lower or "resourceexhausted" in error_msg_lower or "429" in error_msg_lower or "generativelanguage" in error_msg_lower:
+    elif "quota exceeded" in error_msg_lower or "resourceexhausted" in error_msg_lower or "429" in error_msg_lower and "groq" not in error_msg_lower and "huggingface" not in error_msg_lower:
         import re
         time_match = re.search(r"retry in ([0-9a-zA-Z\.\s]+)", error_msg)
         if not time_match:
             time_match = re.search(r"seconds:\s*(\d+)", error_msg)
         time_left = time_match.group(1) if time_match else "30 seconds"
         st.error(f"🚨 **Gemini API Rate Limit/Quota Exceeded!**\n\nGoogle Gemini's free tier has a strict limit of 15/20 requests per minute.\n\n**How to fix:**\n1. Wait **{time_left}** for the current window to reset, then click retry.\n2. **Switch to Quick Analysis mode** to only scan 2 or 3 select repositories (uses significantly fewer API calls).\n3. **Switch to Groq (Llama 3.3)** by providing a Groq API key in the sidebar.")
+        
+    elif "huggingface" in error_msg_lower or "hf_token" in error_msg_lower or "hugging face" in error_msg_lower:
+        st.error(f"🚨 **Hugging Face Rate Limit Exhausted!**\n\nYou have hit the anonymous rate limit.\n\n**How to fix:**\n1. **Add an HF Token** in the sidebar settings to get a much larger quota.\n2. **Switch to Google Gemini**, which has a large free tier.")
         
     else:
         st.error(f"🚨 **Application Error**\n\nAn unexpected error occurred during execution:\n\n**Details**: `{error_msg}`\n\n```python\n{traceback.format_exc()}\n```")
@@ -248,7 +278,7 @@ with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
                     st.session_state.resume_content = None
                     st.session_state.latex_code = None
                     with st.status("Running Full Analysis...", expanded=True) as status:
-                        st.write(f"Extracting GitHub Profile & Metadata with {model_choice}...")
+                        pbar = st.progress(0, text=f"Step 1/6: Extracting GitHub Profile & Metadata with {model_choice}...")
                         res = mcp.call("extract_github_metadata", {
                             "username": username, 
                             "model_choice": model_choice
@@ -257,7 +287,7 @@ with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
                         st.session_state.raw_repos = res["raw_repos"]
                         
                         repos_to_scan = [r["metadata"]["name"] for r in st.session_state.raw_repos]
-                        st.write(f"Building Knowledge Base for {len(repos_to_scan)} repositories with {model_choice}...")
+                        pbar.progress(15, text=f"Step 2/6: Extracting knowledge for {len(repos_to_scan)} repositories (using caching)...")
                         build_res = mcp.call("build_repository_profiles", {
                             "username": username,
                             "raw_repos": st.session_state.raw_repos,
@@ -271,11 +301,11 @@ with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
                             profiles = build_res
                         st.session_state.repository_profiles = profiles
                         
-                        st.write(f"Structuring Job Description with {model_choice}...")
+                        pbar.progress(40, text=f"Step 3/6: Structuring Job Description requirements...")
                         jd_prof = mcp.call("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
                         st.session_state.jd_profile = jd_prof
                         
-                        st.write(f"Matching Repositories to Job Description with {model_choice}...")
+                        pbar.progress(55, text=f"Step 4/6: Matching & Scoring {len(profiles)} Repositories...")
                         match_res = mcp.call("match_repositories", {
                             "repo_profiles": profiles,
                             "jd_profile": jd_prof,
@@ -286,13 +316,14 @@ with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
                         st.session_state.match_results = match_res["ranked_matches"]
                         st.session_state.overall_skill_gap = match_res["overall_skill_gap"]
                         
-                        st.write(f"Automatically generating Final Resume from top matches with {model_choice}...")
+                        pbar.progress(70, text=f"Step 5/6: Extracting OSS Contributions...")
                         auto_selected_repos = [m['repository_name'] for m in st.session_state.match_results[:max_projects]]
                         st.session_state.selected_for_resume = auto_selected_repos
                         
                         oss_contribs = mcp.call("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
                         selected_profiles = [rp for rp in st.session_state.repository_profiles if rp['name'] in auto_selected_repos]
                         
+                        pbar.progress(85, text=f"Step 6/6: Generating AI Resume and LaTeX Code...")
                         resume = mcp.call("generate_resume", {
                             "profile_dict": st.session_state.github_metadata["profile"],
                             "selected_repo_profiles": selected_profiles,
@@ -306,6 +337,7 @@ with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
                         st.session_state.resume_content = resume
                         st.session_state.latex_code = latex.generate_latex(resume, "ATS Classic")
                         
+                        pbar.progress(100, text="Pipeline Complete!")
                         status.update(label="✅ Full Pipeline Complete!", state="complete")
                     st.rerun()
                 except Exception as e:
@@ -386,7 +418,7 @@ with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
                         st.session_state.resume_content = None
                         st.session_state.latex_code = None
                         with st.status("Running Quick Analysis...", expanded=True) as status:
-                            st.write(f"Building Knowledge Base for {len(selected_repos)} repositories with {model_choice}...")
+                            pbar = st.progress(0, text=f"Step 1/5: Extracting knowledge for {len(selected_repos)} repositories (using caching)...")
                             build_res = mcp.call("build_repository_profiles", {
                                 "username": st.session_state.username,
                                 "raw_repos": st.session_state.raw_repos,
@@ -400,11 +432,11 @@ with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
                                 profiles = build_res
                             st.session_state.repository_profiles = profiles
                             
-                            st.write(f"Structuring Job Description with {model_choice}...")
+                            pbar.progress(25, text=f"Step 2/5: Structuring Job Description requirements...")
                             jd_prof = mcp.call("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
                             st.session_state.jd_profile = jd_prof
                             
-                            st.write(f"Matching Repositories to Job Description with {model_choice}...")
+                            pbar.progress(45, text=f"Step 3/5: Matching & Scoring Repositories...")
                             match_res = mcp.call("match_repositories", {
                                 "repo_profiles": profiles,
                                 "jd_profile": jd_prof,
@@ -415,13 +447,14 @@ with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
                             st.session_state.match_results = match_res["ranked_matches"]
                             st.session_state.overall_skill_gap = match_res["overall_skill_gap"]
                             
-                            st.write(f"Automatically generating Final Resume from top matches with {model_choice}...")
+                            pbar.progress(65, text=f"Step 4/5: Extracting OSS Contributions...")
                             auto_selected_repos = [m['repository_name'] for m in st.session_state.match_results[:max_projects]]
                             st.session_state.selected_for_resume = auto_selected_repos
                             
                             oss_contribs = mcp.call("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
                             selected_profiles = [rp for rp in st.session_state.repository_profiles if rp['name'] in auto_selected_repos]
                             
+                            pbar.progress(85, text=f"Step 5/5: Generating AI Resume and LaTeX Code...")
                             resume = mcp.call("generate_resume", {
                                 "profile_dict": st.session_state.github_metadata["profile"],
                                 "selected_repo_profiles": selected_profiles,
@@ -435,7 +468,8 @@ with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
                             st.session_state.resume_content = resume
                             st.session_state.latex_code = latex.generate_latex(resume, "ATS Classic")
                             
-                            status.update(label="✅ Analysis & Resume Generation Complete!", state="complete")
+                            pbar.progress(100, text="Pipeline Complete!")
+                            status.update(label="✅ Quick Analysis & Resume Generation Complete!", state="complete")
                         st.rerun()
                     except Exception as e:
                         handle_error(e)
