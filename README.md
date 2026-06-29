@@ -1,4 +1,4 @@
-# 🎯 alldone — GitHub-to-ATS Resume Parser
+# 🎯 alldone — Developer Career AI Agent
 
 > **Job Description → GitHub Portfolio → Tailored ATS Resume** — An AI-powered intelligence platform that parses your GitHub profile, matches real-world code against a job description, surfaces skill gaps, and compiles a download-ready LaTeX resume.
 
@@ -11,19 +11,29 @@
 
 ---
 
-## 🚀 The Problem & The Solution
+## 🚨 Problem Statement
+Software engineers spend hours manually curating their resumes for every single job application. This repetitive manual labor involves cross-referencing GitHub repositories to find relevant projects, rewriting summaries to include ATS-friendly keywords, and re-formatting LaTeX documents from scratch to match specific job descriptions.
 
-### The Problem: Repetitive Manual Labour
-Every time you apply for a job you must:
-- Cross-reference your GitHub repos to find which projects best match the JD.
-- Rewrite project summaries and bullet points with the right keywords to pass ATS filters.
-- Re-format and re-compile a LaTeX document from scratch.
+## 💡 Solution Overview
+**Developer Career AI Agent** automates the entire resume tailoring process. By analyzing a candidate's GitHub profile and a target Job Description (JD), the AI agent deterministically maps real-world code (ASTs, dependencies, READMEs) to the required skills. It then highlights skill gaps and instantly compiles a perfectly tailored, ATS-compliant LaTeX resume.
 
-### The Solution: What alldone Does
-1. **JD Parsing** — Extracts hard technical requirements (languages, frameworks, tools, methodologies) from any pasted Job Description using an LLM.
-2. **Deep GitHub Inspection** — Fetches your profile, all non-fork repositories, READMEs, dependency files (requirements.txt, package.json, Cargo.toml, etc.), language breakdowns, and external merged OSS PRs.
-3. **Evidence-Based Matching** — Scores every selected repository against the JD with strict evidence tracing (only marks a skill matched if it appears in code, deps, or README).
-4. **ATS LaTeX Resume** — Generates 3 punchy action-verb bullets per project and compiles a download-ready `.tex` file in seconds.
+## ✨ Key Features
+- **Evidence-Based Matching:** Only marks a skill as "matched" if it explicitly appears in the user's code, dependency files, or documentation.
+- **Automated Skill Gap Analysis:** Highlights exactly which JD requirements are missing from the candidate's public repositories.
+- **One-Click LaTeX Resume Generation:** Uses an LLM to generate highly concise, high-impact engineering bullet points and compiles them into a download-ready PDF.
+- **Bring Your Own Key (BYOK):** Privacy-first architecture ensuring LLM keys are session-scoped and never stored.
+
+## 🛠️ Technologies Used
+- **Frontend:** Streamlit, Vanilla CSS (Glassmorphism)
+- **Backend Orchestration:** Python, Model Context Protocol (MCP) concepts
+- **AI / LLMs:** Groq (LLaMA 3.3 70B), Google Gemini 2.5 Flash, Hugging Face
+- **Integrations:** GitHub REST API
+- **Document Generation:** LaTeX
+
+## 🎯 Target Users
+- **Software Engineers & Developers:** Looking to automate and optimize their job application process.
+- **Students & Interns:** Needing help translating their academic and personal GitHub projects into professional resume bullets.
+- **Career Coaches:** Seeking tools to rapidly generate baseline tailored resumes for their clients.
 
 ---
 

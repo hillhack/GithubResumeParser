@@ -12,7 +12,7 @@ import latex
 import math
 
 st.set_page_config(
-    page_title="alldone v2 — GitHub to Job‑Ready Resume",
+    page_title="alldone v2 — Developer Career AI Agent",
     page_icon="✅",
     layout="wide",
     initial_sidebar_state="expanded",
