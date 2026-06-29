@@ -22,8 +22,10 @@ class GeminiProvider(LLMProvider):
             warnings.simplefilter("ignore", category=FutureWarning)
             import google.generativeai as genai
         from google.api_core.exceptions import ResourceExhausted, GoogleAPIError
+        from utils.keys import api_keys_ctx
 
-        api_key = os.getenv("GEMINI_API_KEY")
+        keys = api_keys_ctx.get()
+        api_key = keys.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GEMINI_API_KEY is not set. Please add it in the sidebar or .env file.")
 

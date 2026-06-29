@@ -153,6 +153,28 @@ Open **http://localhost:8501** in your browser.
 
 ---
 
+## 🔒 Security & Trust
+
+### **Are my API keys safe?**
+Yes. **alldone** uses a **Bring Your Own Key (BYOK)** approach. Your keys are stored only in isolated session memory (via Python `contextvars`) to make requests. They are **never** logged, written to disk, or sent to a database.
+
+### **Why BYOK?**
+As an open-source project, BYOK keeps the platform free to self-host without the creators incurring massive inference costs. It gives you full control over your preferred LLM provider and quota.
+
+### **Do I always need an API key?**
+Generally, yes (for Groq and Gemini). However, some Hugging Face models may allow limited anonymous access without a token, depending on their current usage policies.
+
+### **How would this work in a production SaaS?**
+A commercial SaaS would use centrally managed **server-side API keys** stored securely. It would route all LLM calls through a backend proxy to handle authentication, rate limiting, caching, and billing, completely hiding provider credentials from end users.
+
+```text
+Current (BYOK) Architecture:        Commercial SaaS Architecture:
+User ➔ API Key ➔ alldone ➔ LLM      User ➔ SaaS Backend (Secure Keys) ➔ LLM
+```
+
+---
+
 ## 📝 License
 
 Distributed under the MIT License. See `LICENSE` for more details.
+

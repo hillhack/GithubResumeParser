@@ -18,8 +18,10 @@ class GroqProvider(LLMProvider):
     def generate(self, sys_prompt: str, user_prompt: str, temperature: float = 0.1) -> str:
         from groq import Groq
         import groq as groq_module
+        from utils.keys import api_keys_ctx
 
-        api_key = os.getenv("GROQ_API_KEY")
+        keys = api_keys_ctx.get()
+        api_key = keys.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
         if not api_key:
             raise ValueError("GROQ_API_KEY is not set. Please add it in the sidebar or .env file.")
 

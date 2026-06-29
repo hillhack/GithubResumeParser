@@ -106,10 +106,6 @@ with st.sidebar:
         )
         if groq_key != st.session_state.get("groq_api_key", ""):
             st.session_state.groq_api_key = groq_key
-            if groq_key:
-                os.environ["GROQ_API_KEY"] = groq_key
-            else:
-                load_dotenv(override=True)
             st.rerun()
             
         # Display key status
@@ -133,10 +129,6 @@ with st.sidebar:
         )
         if hf_token != st.session_state.get("hf_token", ""):
             st.session_state.hf_token = hf_token
-            if hf_token:
-                os.environ["HF_TOKEN"] = hf_token
-            else:
-                load_dotenv(override=True)
             st.rerun()
             
         # Display key status
@@ -160,10 +152,6 @@ with st.sidebar:
         )
         if gemini_key != st.session_state.get("gemini_api_key", ""):
             st.session_state.gemini_api_key = gemini_key
-            if gemini_key:
-                os.environ["GEMINI_API_KEY"] = gemini_key
-            else:
-                load_dotenv(override=True)
             st.rerun()
             
         # Display key status
@@ -187,12 +175,8 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     if gh_token != st.session_state.get("github_token", ""):
-        st.session_state.github_token = gh_token
-        if gh_token:
-            os.environ["GITHUB_TOKEN"] = gh_token
-        else:
-            load_dotenv(override=True)
-        st.rerun()
+            st.session_state.github_token = gh_token
+            st.rerun()
         
     # Display token status
     if st.session_state.get("github_token"):

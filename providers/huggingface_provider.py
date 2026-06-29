@@ -26,8 +26,10 @@ class HuggingFaceProvider(LLMProvider):
             from huggingface_hub import InferenceClient
         except ImportError:
             raise ImportError("huggingface_hub is not installed. Run: pip install huggingface_hub")
+        from utils.keys import api_keys_ctx
 
-        token = os.getenv("HF_TOKEN") or None  # None = anonymous free tier
+        keys = api_keys_ctx.get()
+        token = keys.get("HF_TOKEN") or os.getenv("HF_TOKEN") or None
         model = _DEFAULT_MODEL
 
         client = InferenceClient(model=model, token=token)
