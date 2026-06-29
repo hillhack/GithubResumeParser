@@ -231,6 +231,9 @@ def handle_error(e):
     elif "is not set" in error_msg_lower and ("key" in error_msg_lower or "token" in error_msg_lower):
         st.warning(f"🔑 **Missing API Key**\n\n{error_msg}")
         
+    elif "404" in error_msg and "not found" in error_msg_lower and "api.github.com/users/" in error_msg_lower:
+        st.warning(f"⚠️ **GitHub User Not Found**\n\nThe username you entered could not be found on GitHub. Please check the spelling and try again.")
+        
     else:
         st.error(f"🚨 **Application Error**\n\nAn unexpected error occurred during execution:\n\n**Details**: `{error_msg}`\n\n```python\n{traceback.format_exc()}\n```")
 
@@ -248,7 +251,7 @@ with st.container():
     st.session_state.analysis_mode = analysis_mode
 
     if "Full Analysis" in st.session_state.analysis_mode:
-        username = st.text_input("GitHub Username", value=st.session_state.username, placeholder="e.g. torvalds", key="full_user_input")
+        username = st.text_input("GitHub Username", value=st.session_state.username, placeholder="e.g. torvalds", key="full_user_input").strip()
         if username != st.session_state.username:
             st.session_state.username = username
             
@@ -340,7 +343,7 @@ with st.container():
     else:
         # Quick Analysis Flow
         st.markdown("<span class='input-label'>GitHub Username</span>", unsafe_allow_html=True)
-        username = st.text_input("GitHub Username", value=st.session_state.username, placeholder="e.g. torvalds", key="quick_user", label_visibility="collapsed")
+        username = st.text_input("GitHub Username", value=st.session_state.username, placeholder="e.g. torvalds", key="quick_user", label_visibility="collapsed").strip()
         if username != st.session_state.username:
             st.session_state.username = username
         
