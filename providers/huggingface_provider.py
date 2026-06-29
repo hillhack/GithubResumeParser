@@ -29,7 +29,7 @@ class HuggingFaceProvider(LLMProvider):
         from utils.keys import api_keys_ctx
 
         keys = api_keys_ctx.get()
-        token = keys.get("HF_TOKEN") or os.getenv("HF_TOKEN") or None
+        token = keys.get("HF_TOKEN") or None
         model = _DEFAULT_MODEL
 
         client = InferenceClient(model=model, token=token)

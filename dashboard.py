@@ -45,6 +45,13 @@ for k, v in INITIAL_STATE.items():
 
 mcp = ResumeMCPClient()
 
+def call_mcp(tool_name, payload):
+    payload["groq_api_key"] = st.session_state.get("groq_api_key")
+    payload["gemini_api_key"] = st.session_state.get("gemini_api_key")
+    payload["github_token"] = st.session_state.get("github_token")
+    payload["hf_token"] = st.session_state.get("hf_token")
+    return mcp.call(tool_name, payload)
+
 # ── Helper HTML generators ─────────────────────────────────────────────────
 def generate_badges(items, badge_class):
     if not items:
@@ -263,7 +270,7 @@ with st.expander("🔍 Configure & Run Analysis", expanded=True):
                     st.session_state.latex_code = None
                     with st.status("Running Full Analysis...", expanded=True) as status:
                         pbar = st.progress(0, text=f"Step 1/6: Extracting GitHub Profile & Metadata with {model_choice}...")
-                        res = mcp.call("extract_github_metadata", {
+                        res = call_mcp("extract_github_metadata", {
                             "username": username, 
                             "model_choice": model_choice
                         })
@@ -272,7 +279,7 @@ with st.expander("🔍 Configure & Run Analysis", expanded=True):
                         
                         repos_to_scan = [r["metadata"]["name"] for r in st.session_state.raw_repos]
                         pbar.progress(15, text=f"Step 2/6: Extracting knowledge for {len(repos_to_scan)} repositories (using caching)...")
-                        build_res = mcp.call("build_repository_profiles", {
+                        build_res = call_mcp("build_repository_profiles", {
                             "username": username,
                             "raw_repos": st.session_state.raw_repos,
                             "selected_repo_names": repos_to_scan,
@@ -286,11 +293,11 @@ with st.expander("🔍 Configure & Run Analysis", expanded=True):
                         st.session_state.repository_profiles = profiles
                         
                         pbar.progress(40, text=f"Step 3/6: Structuring Job Description requirements...")
-                        jd_prof = mcp.call("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
+                        jd_prof = call_mcp("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
                         st.session_state.jd_profile = jd_prof
                         
                         pbar.progress(55, text=f"Step 4/6: Matching & Scoring {len(profiles)} Repositories...")
-                        match_res = mcp.call("match_repositories", {
+                        match_res = call_mcp("match_repositories", {
                             "repo_profiles": profiles,
                             "jd_profile": jd_prof,
                             "raw_repos": st.session_state.raw_repos,
@@ -304,11 +311,11 @@ with st.expander("🔍 Configure & Run Analysis", expanded=True):
                         auto_selected_repos = [m['repository_name'] for m in st.session_state.match_results[:max_projects]]
                         st.session_state.selected_for_resume = auto_selected_repos
                         
-                        oss_contribs = mcp.call("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
+                        oss_contribs = call_mcp("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
                         selected_profiles = [rp for rp in st.session_state.repository_profiles if rp['name'] in auto_selected_repos]
                         
                         pbar.progress(85, text=f"Step 6/6: Generating AI Resume and LaTeX Code...")
-                        resume = mcp.call("generate_resume", {
+                        resume = call_mcp("generate_resume", {
                             "profile_dict": st.session_state.github_metadata["profile"],
                             "selected_repo_profiles": selected_profiles,
                             "jd_profile_dict": st.session_state.jd_profile,
@@ -343,7 +350,7 @@ with st.expander("🔍 Configure & Run Analysis", expanded=True):
             elif username:
                 try:
                     with st.spinner("Extracting Profile & Repository Metadata..."):
-                        res = mcp.call("extract_github_metadata", {
+                        res = call_mcp("extract_github_metadata", {
                             "username": username, 
                             "model_choice": model_choice
                         })
@@ -403,7 +410,7 @@ with st.expander("🔍 Configure & Run Analysis", expanded=True):
                         st.session_state.latex_code = None
                         with st.status("Running Quick Analysis...", expanded=True) as status:
                             pbar = st.progress(0, text=f"Step 1/5: Extracting knowledge for {len(selected_repos)} repositories (using caching)...")
-                            build_res = mcp.call("build_repository_profiles", {
+                            build_res = call_mcp("build_repository_profiles", {
                                 "username": st.session_state.username,
                                 "raw_repos": st.session_state.raw_repos,
                                 "selected_repo_names": selected_repos,
@@ -417,11 +424,11 @@ with st.expander("🔍 Configure & Run Analysis", expanded=True):
                             st.session_state.repository_profiles = profiles
                             
                             pbar.progress(25, text=f"Step 2/5: Structuring Job Description requirements...")
-                            jd_prof = mcp.call("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
+                            jd_prof = call_mcp("analyze_jd", {"jd_text": jd_text, "model_choice": model_choice})
                             st.session_state.jd_profile = jd_prof
                             
                             pbar.progress(45, text=f"Step 3/5: Matching & Scoring Repositories...")
-                            match_res = mcp.call("match_repositories", {
+                            match_res = call_mcp("match_repositories", {
                                 "repo_profiles": profiles,
                                 "jd_profile": jd_prof,
                                 "raw_repos": st.session_state.raw_repos,
@@ -435,11 +442,11 @@ with st.expander("🔍 Configure & Run Analysis", expanded=True):
                             auto_selected_repos = [m['repository_name'] for m in st.session_state.match_results[:max_projects]]
                             st.session_state.selected_for_resume = auto_selected_repos
                             
-                            oss_contribs = mcp.call("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
+                            oss_contribs = call_mcp("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
                             selected_profiles = [rp for rp in st.session_state.repository_profiles if rp['name'] in auto_selected_repos]
                             
                             pbar.progress(85, text=f"Step 5/5: Generating AI Resume and LaTeX Code...")
-                            resume = mcp.call("generate_resume", {
+                            resume = call_mcp("generate_resume", {
                                 "profile_dict": st.session_state.github_metadata["profile"],
                                 "selected_repo_profiles": selected_profiles,
                                 "jd_profile_dict": st.session_state.jd_profile,
@@ -487,9 +494,9 @@ if st.session_state.match_results:
                     
                     oss_contribs = []
                     if include_oss:
-                        oss_contribs = mcp.call("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
+                        oss_contribs = call_mcp("extract_oss", {"username": st.session_state.username, "model_choice": model_choice})
                         
-                    resume = mcp.call("generate_resume", {
+                    resume = call_mcp("generate_resume", {
                         "profile_dict": st.session_state.github_metadata["profile"],
                         "selected_repo_profiles": selected_profiles,
                         "jd_profile_dict": st.session_state.jd_profile,

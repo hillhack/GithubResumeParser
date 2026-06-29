@@ -8,12 +8,13 @@ class ResumeMCPClient:
     def call(self, tool_name: str, payload: dict) -> dict:
         import os
         
-        # Capture keys securely for this specific thread/request
+        # LLM keys come ONLY from the user's sidebar input — no env fallback.
+        # GITHUB_TOKEN may fall back to env since it is infrastructure config, not a user LLM key.
         request_keys = {}
-        request_keys["GROQ_API_KEY"] = payload.get("groq_api_key") or os.environ.get("GROQ_API_KEY")
-        request_keys["GEMINI_API_KEY"] = payload.get("gemini_api_key") or os.environ.get("GEMINI_API_KEY")
+        request_keys["GROQ_API_KEY"] = payload.get("groq_api_key") or None
+        request_keys["GEMINI_API_KEY"] = payload.get("gemini_api_key") or None
         request_keys["GITHUB_TOKEN"] = payload.get("github_token") or os.environ.get("GITHUB_TOKEN")
-        request_keys["HF_TOKEN"] = payload.get("hf_token") or os.environ.get("HF_TOKEN")
+        request_keys["HF_TOKEN"] = payload.get("hf_token") or None
         
         # Set keys in the context variable for downstream providers
         token = api_keys_ctx.set(request_keys)

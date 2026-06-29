@@ -25,9 +25,9 @@ class GeminiProvider(LLMProvider):
         from utils.keys import api_keys_ctx
 
         keys = api_keys_ctx.get()
-        api_key = keys.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+        api_key = keys.get("GEMINI_API_KEY")
         if not api_key:
-            raise ValueError("GEMINI_API_KEY is not set. Please add it in the sidebar or .env file.")
+            raise ValueError("GEMINI_API_KEY is not set. Please add it in the Custom API Keys sidebar.")
 
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(_MODEL)

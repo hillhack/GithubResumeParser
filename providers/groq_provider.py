@@ -21,9 +21,9 @@ class GroqProvider(LLMProvider):
         from utils.keys import api_keys_ctx
 
         keys = api_keys_ctx.get()
-        api_key = keys.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
+        api_key = keys.get("GROQ_API_KEY")
         if not api_key:
-            raise ValueError("GROQ_API_KEY is not set. Please add it in the sidebar or .env file.")
+            raise ValueError("GROQ_API_KEY is not set. Please add it in the Custom API Keys sidebar.")
 
         client = Groq(api_key=api_key)
 

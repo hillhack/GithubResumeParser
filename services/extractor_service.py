@@ -19,11 +19,7 @@ def extract_repository_files(username: str, repo: Repository, token: str = None)
     languages = get_repo_languages(username, repo.metadata.name, token)
     repo.metadata.languages = languages
 
-    commits = get_repo_commits(username, repo.metadata.name, author=username, token=token, limit=5)
-    repo.metadata.user_commits = [
-        c.get("commit", {}).get("message", "").split("\n")[0]
-        for c in commits if isinstance(c, dict)
-    ]
+    # Commits on personal repos are a waste of time (usually trivial), so we no longer fetch them here.
 
     # 2. Fetch all important files concurrently
     def fetch_file(file_path: str):
