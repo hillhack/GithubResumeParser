@@ -369,7 +369,7 @@ with st.container():
                 except Exception as e:
                     handle_error(e)
     
-        if st.session_state.github_metadata and not st.session_state.repository_profiles:
+        if st.session_state.github_metadata:
             st.markdown("<br><span class='input-label'>Select Repositories for Analysis</span>", unsafe_allow_html=True)
             if "quick_selected_repos" not in st.session_state:
                 st.session_state.quick_selected_repos = [r["metadata"]["name"] for r in st.session_state.raw_repos[:max_projects]]
@@ -471,7 +471,7 @@ with st.container():
 # --- Full Application View ---
 if st.session_state.match_results:
     tab1, tab2, tab3, tab4 = st.tabs([
-        "📄 Resume", "📂 Projects", "🎯 Skill Gap", "📋 Job Description"
+        "📄 Resume", "📂 Projects", "🎯 Skill Gap", "📋 JD Analysis"
     ])
 
     # --- 1. RESUME TAB ---
