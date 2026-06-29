@@ -103,10 +103,28 @@ def match_repositories(repo_profiles: list, jd_profile: dict, raw_repos: list = 
         matches.append(match_res)
         
     ranked = rank_matches(matches)
-    # We explicitly exclude soft_skills from the overall gap because they cannot be reliably proven by code repositories
-    jd_all_requirements = jd.required_skills + jd.preferred_skills + jd.tools + jd.frameworks + jd.libraries
-    overall_gap = compute_overall_skill_gap(ranked, jd_all_requirements)
-    
+    # Build comprehensive requirement list from all technical JD fields.
+    # Soft skills are explicitly excluded — they cannot be proven by repository evidence.
+    jd_all_requirements = (
+        jd.required_skills
+        + jd.preferred_skills
+        + jd.programming_languages
+        + jd.technologies
+        + jd.tools
+        + jd.frameworks
+        + jd.libraries
+        + jd.methodologies
+    )
+    # Deduplicate while preserving order
+    seen: set = set()
+    unique_requirements: list = []
+    for req in jd_all_requirements:
+        if req.lower() not in seen:
+            seen.add(req.lower())
+            unique_requirements.append(req)
+
+    overall_gap = compute_overall_skill_gap(ranked, unique_requirements)
+
     return {
         "ranked_matches": [m.model_dump() for m in ranked],
         "overall_skill_gap": overall_gap.model_dump()

@@ -182,11 +182,14 @@ Return ONLY a JSON object:
     
     # Ensure all JD skills are evaluated by the fallback mechanism
     all_jd_skills = (
-        jd_profile.required_skills + 
-        jd_profile.preferred_skills + 
-        jd_profile.tools + 
-        jd_profile.frameworks + 
-        jd_profile.libraries
+        jd_profile.required_skills
+        + jd_profile.preferred_skills
+        + jd_profile.programming_languages
+        + jd_profile.technologies
+        + jd_profile.tools
+        + jd_profile.frameworks
+        + jd_profile.libraries
+        + jd_profile.methodologies
     )
     for jd_skill in all_jd_skills:
         if jd_skill not in matched_skills and jd_skill not in missing_skills:
