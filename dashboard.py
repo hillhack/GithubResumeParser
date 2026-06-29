@@ -243,7 +243,7 @@ def handle_error(e):
 # ── Header / Analysis Inputs ─────────────────────────────────────
 show_results = st.session_state.match_results is not None
 
-with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
+with st.expander("🔍 Configure & Run Analysis", expanded=True):
     st.markdown("<span class='input-label'>Analysis Mode</span>", unsafe_allow_html=True)
     analysis_mode = st.radio(
         "Analysis Mode",
@@ -478,14 +478,14 @@ with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
 if st.session_state.match_results:
     col1, col2 = st.columns([0.85, 0.15])
     with col2:
-        if st.button("🏠 New Analysis", use_container_width=True, type="secondary"):
+        if st.button("🔄 Reset Analysis", use_container_width=True, type="secondary"):
             st.session_state.clear()
             for k, v in INITIAL_STATE.items():
                 st.session_state[k] = v
             st.rerun()
 
-    tab1, tab2, tab3 = st.tabs([
-        "📄 Resume", "📂 Projects", "🎯 Skill Gap"
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📄 Resume", "📂 Projects", "🎯 Skill Gap", "📋 Job Description"
     ])
 
     # --- 1. RESUME TAB ---
@@ -742,3 +742,40 @@ if st.session_state.match_results:
                 <div class='learn-tip'>{html_lib.escape(rec)}</div>
             </div>
             """, unsafe_allow_html=True)
+
+    # --- 4. JOB DESCRIPTION TAB ---
+    with tab4:
+        jd = st.session_state.jd_profile
+        if not isinstance(jd, dict):
+            # Sometimes JD is stored as a pydantic model in session state depending on where it came from
+            if hasattr(jd, 'model_dump'):
+                jd = jd.model_dump()
+            elif hasattr(jd, 'dict'):
+                jd = jd.dict()
+                
+        st.markdown("### Job Description Analysis")
+        st.markdown(f"**Role:** {html_lib.escape(jd.get('role', jd.get('position', 'N/A')))}")
+        st.markdown(f"**Domain:** {html_lib.escape(jd.get('domain', 'N/A'))}")
+        st.markdown(f"**Experience Level:** {html_lib.escape(jd.get('experience_level', 'N/A'))}")
+        
+        st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+        st.markdown("**Responsibilities**")
+        for res in jd.get('responsibilities', []):
+            st.markdown(f"- {html_lib.escape(res)}")
+            
+        st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("**Required Skills**")
+            st.markdown(generate_badges(jd.get('required_skills', []), "badge-missing"), unsafe_allow_html=True)
+        with c2:
+            st.markdown("**Preferred Skills**")
+            st.markdown(generate_badges(jd.get('preferred_skills', []), "tag"), unsafe_allow_html=True)
+            
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(f"**Programming Languages:** {', '.join(jd.get('programming_languages', []))}")
+        st.markdown(f"**Frameworks:** {', '.join(jd.get('frameworks', []))}")
+        st.markdown(f"**Libraries:** {', '.join(jd.get('libraries', []))}")
+        st.markdown(f"**Cloud & Databases:** {', '.join(jd.get('cloud', []) + jd.get('databases', []))}")
+        st.markdown(f"**DevOps & Tools:** {', '.join(jd.get('devops', []) + jd.get('tools', []))}")
+        st.markdown(f"**ATS Keywords:** {', '.join(jd.get('ats_keywords', []) + jd.get('keywords', []))}")
