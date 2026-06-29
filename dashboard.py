@@ -35,7 +35,8 @@ INITIAL_STATE = {
     "analysis_mode": "Full Analysis (Scan all repositories)",
     "groq_api_key": "",
     "gemini_api_key": "",
-    "github_token": ""
+    "github_token": "",
+    "jd_text": ""
 }
 
 for k, v in INITIAL_STATE.items():
@@ -209,8 +210,10 @@ def handle_error(e):
     else:
         st.error(f"🚨 **Application Error**\n\nAn unexpected error occurred during execution:\n\n**Details**: `{error_msg}`\n\n```python\n{traceback.format_exc()}\n```")
 
-# ── Header ───────────────────────────────────────────────────────
-if not st.session_state.match_results:
+# ── Header / Analysis Inputs ─────────────────────────────────────
+show_results = st.session_state.match_results is not None
+
+with st.expander("🔍 Configure & Run Analysis", expanded=not show_results):
     st.markdown("<span class='input-label'>Analysis Mode</span>", unsafe_allow_html=True)
     analysis_mode = st.radio(
         "Analysis Mode",
@@ -221,8 +224,13 @@ if not st.session_state.match_results:
     st.session_state.analysis_mode = analysis_mode
 
     if "Full Analysis" in st.session_state.analysis_mode:
-        username = st.text_input("GitHub Username", value=st.session_state.username, placeholder="e.g. torvalds")
-        jd_text = st.text_area("Job Description", height=150, placeholder="Paste JD here...")
+        username = st.text_input("GitHub Username", value=st.session_state.username, placeholder="e.g. torvalds", key="full_user_input")
+        if username != st.session_state.username:
+            st.session_state.username = username
+            
+        jd_text = st.text_area("Job Description", value=st.session_state.get("jd_text", ""), height=150, placeholder="Paste JD here...", key="full_jd_input")
+        if jd_text != st.session_state.get("jd_text", ""):
+            st.session_state.jd_text = jd_text
     
         if st.button("🚀 Run Full Pipeline"):
             missing_key = ("Groq" in model_choice and not st.session_state.get("groq_api_key") and not os.environ.get("GROQ_API_KEY")) or \
@@ -307,6 +315,8 @@ if not st.session_state.match_results:
         # Quick Analysis Flow
         st.markdown("<span class='input-label'>GitHub Username</span>", unsafe_allow_html=True)
         username = st.text_input("GitHub Username", value=st.session_state.username, placeholder="e.g. torvalds", key="quick_user", label_visibility="collapsed")
+        if username != st.session_state.username:
+            st.session_state.username = username
         
         if st.button("Fetch GitHub Metadata"):
             missing_key = ("Groq" in model_choice and not st.session_state.get("groq_api_key") and not os.environ.get("GROQ_API_KEY")) or \
@@ -355,7 +365,9 @@ if not st.session_state.match_results:
             st.session_state.quick_selected_repos = selected_repos
             
             st.markdown("<br><span class='input-label'>Job Description Matching</span>", unsafe_allow_html=True)
-            jd_text = st.text_area("Paste Job Description", height=150, label_visibility="collapsed")
+            jd_text = st.text_area("Paste Job Description", value=st.session_state.get("jd_text", ""), height=150, label_visibility="collapsed", key="quick_jd_input")
+            if jd_text != st.session_state.get("jd_text", ""):
+                st.session_state.jd_text = jd_text
             
             if st.button("Run Pipeline on Selected Repos", type="primary"):
                 missing_key = ("Groq" in model_choice and not st.session_state.get("groq_api_key") and not os.environ.get("GROQ_API_KEY")) or \
@@ -596,12 +608,15 @@ if st.session_state.match_results:
             if jd_tech:
                 tech_match = min(100, int(len(repo_tech) / len(jd_tech) * 100))
             else:
-                tech_match = 100 if repo_tech else 0
+                tech_match = 100
                 
             domain_str = mr.get('matched_domain', '')
             domain_match = 100 if prof.get('domain', '').lower() in jd.get('domain', '').lower() or domain_str else 50
             
-            keyword_match = min(100, int(len(mr.get('matched_keywords', [])) / max(1, len(jd.get('keywords', []))) * 100))
+            if jd.get('keywords'):
+                keyword_match = min(100, int(len(mr.get('matched_keywords', [])) / max(1, len(jd.get('keywords', []))) * 100))
+            else:
+                keyword_match = 100
             
             matched_set = {x.lower() for x in mr.get('matched_skills', [])}
             skills_html = ""
@@ -631,16 +646,12 @@ if st.session_state.match_results:
                 st.markdown(f"""
                 <div class='score-row'>
                     <div class='score-card'>
-                        <div class='score-num purple'>{score}%</div>
-                        <div class='score-sub'>Overall Match</div>
+                        <div class='score-num cyan'>{domain_match}%</div>
+                        <div class='score-sub'>Domain Match</div>
                     </div>
                     <div class='score-card'>
                         <div class='score-num green'>{skill_match}%</div>
                         <div class='score-sub'>Skill Match</div>
-                    </div>
-                    <div class='score-card'>
-                        <div class='score-num cyan'>{domain_match}%</div>
-                        <div class='score-sub'>Domain Match</div>
                     </div>
                     <div class='score-card'>
                         <div class='score-num'>{tech_match}%</div>
@@ -649,6 +660,10 @@ if st.session_state.match_results:
                     <div class='score-card'>
                         <div class='score-num'>{keyword_match}%</div>
                         <div class='score-sub'>Keyword Match</div>
+                    </div>
+                    <div class='score-card'>
+                        <div class='score-num purple'>{score}%</div>
+                        <div class='score-sub'>Overall Match</div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)

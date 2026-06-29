@@ -29,12 +29,6 @@ def compute_overall_skill_gap(match_results: List[MatchResult], jd_required_skil
         if skill.lower() in matched_skills_lower:
             matched.append(skill)
             
-    # Include any cased matched skills that were not in the JD (if any)
-    jd_skills_lower = {s.lower() for s in jd_required_skills}
-    for skill in all_matched_skills:
-        if skill.lower() not in jd_skills_lower and skill not in matched:
-            matched.append(skill)
-            
     for skill in jd_required_skills:
         if skill.lower() not in matched_skills_lower:
             missing.append(SkillMatch(
