@@ -33,9 +33,9 @@ INITIAL_STATE = {
     "latex_code": None,
     "username": "",
     "analysis_mode": "Full Analysis (Scan all repositories)",
-    "groq_api_key": "",
-    "gemini_api_key": "",
-    "github_token": ""
+    "groq_api_key": os.environ.get("GROQ_API_KEY", ""),
+    "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
+    "github_token": os.environ.get("GITHUB_TOKEN", "")
 }
 
 for k, v in INITIAL_STATE.items():
@@ -95,55 +95,61 @@ with st.sidebar:
     # Conditional API Key block based on LLM choice
     if "Groq" in model_choice:
         st.markdown("<span class='input-label'>Groq API Key</span>", unsafe_allow_html=True)
-        groq_placeholder = "gsk_..."
-        if os.environ.get("GROQ_API_KEY") and not st.session_state.get("groq_api_key"):
-            groq_placeholder = "Token detected in environment"
         groq_key = st.text_input(
             "Groq API Key",
             type="password",
             value=st.session_state.get("groq_api_key", ""),
-            placeholder=groq_placeholder,
+            placeholder="Enter Groq API Key...",
             help="Provide your own Groq API key to bypass limits.",
             label_visibility="collapsed"
         )
-        if groq_key:
+        if groq_key != st.session_state.get("groq_api_key", ""):
             st.session_state.groq_api_key = groq_key
-            os.environ["GROQ_API_KEY"] = groq_key
+            if groq_key:
+                os.environ["GROQ_API_KEY"] = groq_key
+            else:
+                if "GROQ_API_KEY" in os.environ:
+                    del os.environ["GROQ_API_KEY"]
+            st.rerun()
         st.markdown("<small><a href='https://console.groq.com/keys' target='_blank'>Get free Groq API Key</a></small>", unsafe_allow_html=True)
     else:
         st.markdown("<span class='input-label'>Gemini API Key</span>", unsafe_allow_html=True)
-        gemini_placeholder = "AIzaSy..."
-        if os.environ.get("GEMINI_API_KEY") and not st.session_state.get("gemini_api_key"):
-            gemini_placeholder = "Token detected in environment"
         gemini_key = st.text_input(
             "Gemini API Key",
             type="password",
             value=st.session_state.get("gemini_api_key", ""),
-            placeholder=gemini_placeholder,
+            placeholder="Enter Gemini API Key...",
             help="Provide your own Gemini API key to bypass limits.",
             label_visibility="collapsed"
         )
-        if gemini_key:
+        if gemini_key != st.session_state.get("gemini_api_key", ""):
             st.session_state.gemini_api_key = gemini_key
-            os.environ["GEMINI_API_KEY"] = gemini_key
+            if gemini_key:
+                os.environ["GEMINI_API_KEY"] = gemini_key
+            else:
+                if "GEMINI_API_KEY" in os.environ:
+                    del os.environ["GEMINI_API_KEY"]
+            st.rerun()
         st.markdown("<small><a href='https://aistudio.google.com/app/apikey' target='_blank'>Get free Gemini API Key</a></small>", unsafe_allow_html=True)
 
     # Separate GitHub Token block
     st.markdown("<span class='input-label'>GitHub Token (Optional)</span>", unsafe_allow_html=True)
-    gh_token_placeholder = "ghp_..."
-    if os.environ.get("GITHUB_TOKEN") and not st.session_state.get("github_token"):
-        gh_token_placeholder = "Token detected in environment"
     gh_token = st.text_input(
         "GitHub Token",
         type="password",
         value=st.session_state.get("github_token", ""),
-        placeholder=gh_token_placeholder,
+        placeholder="Enter GitHub Token...",
         help="Only required if GITHUB_TOKEN is not already available in environment variables.",
         label_visibility="collapsed"
     )
-    if gh_token:
+    if gh_token != st.session_state.get("github_token", ""):
         st.session_state.github_token = gh_token
-        os.environ["GITHUB_TOKEN"] = gh_token
+        if gh_token:
+            os.environ["GITHUB_TOKEN"] = gh_token
+        else:
+            if "GITHUB_TOKEN" in os.environ:
+                del os.environ["GITHUB_TOKEN"]
+        st.rerun()
     st.markdown("<small><a href='https://github.com/settings/tokens' target='_blank'>Create GitHub Personal Access Token</a></small>", unsafe_allow_html=True)
 
     
