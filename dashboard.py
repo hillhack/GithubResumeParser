@@ -122,13 +122,13 @@ with st.sidebar:
             
         st.markdown("<small><a href='https://console.groq.com/keys' target='_blank'>Get free Groq API Key</a></small>", unsafe_allow_html=True)
     elif "Hugging" in model_choice:
-        st.markdown("<span class='input-label'>Hugging Face Token (Optional)</span>", unsafe_allow_html=True)
+        st.markdown("<span class='input-label'>Hugging Face Token</span>", unsafe_allow_html=True)
         hf_token = st.text_input(
             "HF Token",
             type="password",
             value=st.session_state.get("hf_token", ""),
-            placeholder="Enter HF Token for higher limits...",
-            help="Provide your own Hugging Face token to override the default rate limits.",
+            placeholder="Enter HF Token...",
+            help="Provide your own Hugging Face token to use the Inference API.",
             label_visibility="collapsed"
         )
         if hf_token != st.session_state.get("hf_token", ""):
@@ -145,9 +145,9 @@ with st.sidebar:
         elif os.environ.get("HF_TOKEN"):
             st.markdown("<span style='color: #8B949E; font-size: 0.8rem;'>🔑 Using HF Token from environment (.env)</span>", unsafe_allow_html=True)
         else:
-            st.markdown("<span style='color: #4CAF50; font-size: 0.8rem;'>✓ Free tier active — no token required</span>", unsafe_allow_html=True)
+            st.markdown("<span style='color: #FF9800; font-size: 0.8rem;'>⚠️ No HF Token detected. Required for this provider.</span>", unsafe_allow_html=True)
             
-        st.markdown("<small><a href='https://huggingface.co/settings/tokens' target='_blank'>Get free HF Token</a> (Slower results on free tier)</small>", unsafe_allow_html=True)
+        st.markdown("<small><a href='https://huggingface.co/settings/tokens' target='_blank'>Get free HF Token</a></small>", unsafe_allow_html=True)
     else:
         st.markdown("<span class='input-label'>Gemini API Key</span>", unsafe_allow_html=True)
         gemini_key = st.text_input(

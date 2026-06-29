@@ -53,6 +53,14 @@ class HuggingFaceProvider(LLMProvider):
                         content = content[4:]
                 return content.strip()
 
+            except ValueError as e:
+                if "api_key" in str(e) or "hf auth login" in str(e):
+                    raise RuntimeError(
+                        "Hugging Face now requires a free token to use their API. "
+                        "Please get one from huggingface.co/settings/tokens and enter it in the sidebar, "
+                        "or switch to Google Gemini (which has a large free tier)."
+                    ) from e
+                raise
             except Exception as e:
                 err = str(e)
                 if "429" in err or "rate limit" in err.lower():
