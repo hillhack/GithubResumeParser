@@ -5,6 +5,8 @@ def rank_matches(match_results: List[MatchResult]) -> List[MatchResult]:
     """Ranks repository matches by their overall score."""
     return sorted(match_results, key=lambda x: x.overall_score, reverse=True)
 
+from services.matcher_service import skill_matches_jd
+
 def compute_overall_skill_gap(match_results: List[MatchResult], jd_required_skills: List[str]) -> OverallSkillGap:
     """Computes the overall skill gap across all analyzed repositories."""
     
@@ -19,18 +21,21 @@ def compute_overall_skill_gap(match_results: List[MatchResult], jd_required_skil
                 evidence_map[skill] = match.evidence[skill]
                 
     missing = []
-    
-    # Case-insensitive comparison for matching
-    matched_skills_lower = {s.lower() for s in all_matched_skills}
-    
-    # Standardize cased matched skills based on the Job Description's casing
     matched = []
+    
+    # Deduplicate jd skills that mean the exact same thing (e.g. AI and Artificial Intelligence)
+    deduped_jd_skills = []
     for skill in jd_required_skills:
-        if skill.lower() in matched_skills_lower:
-            matched.append(skill)
+        # Check if this skill is already represented by a synonym in deduped_jd_skills
+        if not any(skill_matches_jd(skill, [existing]) for existing in deduped_jd_skills):
+            deduped_jd_skills.append(skill)
             
-    for skill in jd_required_skills:
-        if skill.lower() not in matched_skills_lower:
+    # Now check if each unique JD skill is matched by the candidate's repos
+    for skill in deduped_jd_skills:
+        is_matched = any(skill_matches_jd(skill, [m]) for m in all_matched_skills)
+        if is_matched:
+            matched.append(skill)
+        else:
             missing.append(SkillMatch(
                 skill=skill,
                 is_matched=False,

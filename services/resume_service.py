@@ -39,10 +39,11 @@ Candidate Project Profile:
 {repo.model_dump_json()}
 
 Follow these strict rules:
-1. Write exactly 3 highly professional, extremely concise, punchy bullet points (maximum 15-20 words per bullet; not 4, exactly 3). Start each bullet point with a strong action verb, describing HOW you solved the problem (specific features, engineering choices) in a direct, to-the-point manner. Ensure you highlight the matched skills and evidence provided.
-2. Provide a single, complete, well-formed sentence (about 15-25 words, spanning a full line) describing the project's core purpose, the specific problem it solves, and the high-level architecture.
-3. Filter the tech stack to ONLY include technologies relevant to the Job Description skills above, plus 1 or 2 core defining technologies of the project. Keep the total tech stack list to 5-8 items maximum.
-CRITICAL: Explicitly incorporate the 'domain', 'key_features', and 'architecture_patterns' into your bullet points, but keep them extremely brief and to the point. Do not make up info.
+1. Write exactly 3 highly professional, high-impact engineering bullet points. MUST BE EXACTLY 12-16 WORDS PER BULLET to fit on a single line. Use the "Action + Context + Impact" formula (e.g., "Architected AI parsing engine using Python and MCP to deterministically evaluate developer skill sets"). Be specific but extremely concise.
+2. Incorporate specific evidence and matched skills. If the project matched specific JD requirements, mention them briefly (e.g., "Implemented real-time object detection using YOLOv8 and OpenCV"). Do not exceed the 16-word limit per bullet.
+3. Provide a single, well-formed sentence (approx. 15-25 words) describing the project's core purpose and high-level architecture.
+4. Filter the tech stack to ONLY include technologies relevant to the JD, plus core defining technologies. Keep it to 5-8 items.
+CRITICAL: Do not use fluff words. Focus purely on technical implementation, system design, and measurable complexity. Do not invent metrics that aren't in the repository data, but do describe the technical complexity accurately.
 
 Return ONLY JSON:
 {{
@@ -122,15 +123,40 @@ Return ONLY JSON: {{"summary": "<2-3 sentence tailored summary>"}}"""
         tools_set.update(repo.tools or [])
         db_cloud_set.update((repo.database or []) + (repo.cloud or []))
         
+    from services.matcher_service import skill_matches_jd
+    
+    jd_all_skills = (
+        jd_profile.required_skills
+        + jd_profile.preferred_skills
+        + jd_profile.programming_languages
+        + jd_profile.technologies
+        + jd_profile.tools
+        + jd_profile.frameworks
+        + jd_profile.libraries
+        + jd_profile.methodologies
+        + jd_profile.keywords
+        + jd_profile.ats_keywords
+    )
+    
+    def prioritize_skills(skill_set, max_items=8):
+        matched = []
+        unmatched = []
+        for s in skill_set:
+            if any(skill_matches_jd(s, [j]) for j in jd_all_skills):
+                matched.append(s)
+            else:
+                unmatched.append(s)
+        return (matched + unmatched)[:max_items]
+        
     skills_dict = {}
     if lang_set:
-        skills_dict["Languages"] = list(lang_set)
+        skills_dict["Languages"] = prioritize_skills(lang_set)
     if frameworks_set:
-        skills_dict["Frameworks & Libraries"] = list(frameworks_set)
+        skills_dict["Frameworks & Libraries"] = prioritize_skills(frameworks_set, max_items=10)
     if tools_set:
-        skills_dict["Tools & Platforms"] = list(tools_set)
+        skills_dict["Tools & Platforms"] = prioritize_skills(tools_set)
     if db_cloud_set:
-        skills_dict["Databases & Cloud"] = list(db_cloud_set)
+        skills_dict["Databases & Cloud"] = prioritize_skills(db_cloud_set)
 
     return {
         "profile": {
