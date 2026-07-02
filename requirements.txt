@@ -1,9 +1,0 @@
-mcp[cli]
-fastmcp
-groq
-streamlit
-requests
-python-dotenv
-google-generativeai
-pydantic
-huggingface_hub
