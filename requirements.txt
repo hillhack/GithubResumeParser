@@ -10,3 +10,7 @@ requests>=2.28.0                 # Groq + HuggingFace REST calls
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
 python-dotenv>=1.0.0             # .env loader (optional, fallback in app.py)
+
+# ── Agent / MCP ────────────────────────────────────────────────────────────────
+fastmcp>=0.1.0
+mcp[cli]>=1.0.0
