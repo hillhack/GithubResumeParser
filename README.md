@@ -90,24 +90,32 @@ final_score = 0.4 × det_score + 0.6 × llm_score
 ## 📁 Project Structure
 
 ```
-AllDone/
+GithubResumeParser/
 │
-├── app.py              # Streamlit UI — topbar, sidebar, form, 4 result tabs
+├── app.py              # Streamlit UI — topbar, sidebar, form, result tabs
+│
 ├── tools.py            # Pipeline orchestrator — 3 tool functions
 │     ├── extract_jd_skills_tool()   # JD → structured JSON via LLM
 │     ├── analyse_repos_tool()       # Hybrid det+LLM repo scoring
-│     └── generate_resume_tool()     # LLM bullet generation + anti-hallucination filter
+│     └── generate_resume_tool()     # LLM resume generation + anti-hallucination filter
+│
+├── server.py           # MCP server — exposes tools as LLM-callable endpoints (FastMCP)
+│     ├── extract_jd_skills()        # MCP tool wrapper
+│     ├── analyse_repos()            # MCP tool wrapper
+│     └── generate_resume()          # MCP tool wrapper
 │
 ├── extractor.py        # JD extraction — prompt + parse_llm_json()
-├── github_api.py       # GitHub REST client — repo fetch + enrichment + dep parsing
+├── github_api.py       # GitHub REST client — repo fetch, enrichment, dep parsing
 ├── llm_providers.py    # LLM adapters — Groq · Gemini · HuggingFace + contextvars keys
 ├── latex.py            # LaTeX renderer — 3 themes (ATS Classic, Modern, Research)
 ├── cache.py            # Disk cache — get_cached / set_cached / 24h TTL
 │
-├── requirements.txt    # Python dependencies
-├── .env                # Local API keys (never commit this)
+├── requirements.txt    # Runtime dependencies (Streamlit app)
+├── .env                # Local API keys — never commit this
 └── README.md
 ```
+
+> **MCP Server:** `server.py` exposes `tools.py` functions as Model Context Protocol endpoints via [FastMCP](https://github.com/jlowin/fastmcp). Run it locally with `pip install fastmcp mcp && python server.py` to let an LLM agent dynamically choose and call tools. The Streamlit app (`app.py`) calls tools directly and does not depend on the MCP server.
 
 ---
 
@@ -121,8 +129,8 @@ AllDone/
 ### 2. Clone & Install
 
 ```bash
-git clone https://github.com/hillhack/AllDone.git
-cd AllDone
+git clone https://github.com/hillhack/GithubResumeParser.git
+cd GithubResumeParser
 pip install -r requirements.txt
 ```
 
