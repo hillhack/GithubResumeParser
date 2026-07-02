@@ -1,6 +1,0 @@
-# Development dependencies for running server.py as a local MCP agent server.
-# NOT used by Streamlit Cloud — install manually for local agent development:
-#   pip install -r dev-requirements.txt
-
-fastmcp>=2.14.0,<3.0.0
-mcp>=1.0.0
