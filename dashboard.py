@@ -162,27 +162,39 @@ def handle_error(e):
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### ⚙️ Settings")
+    st.markdown("### 📝 Resume Preferences")
+    include_oss = st.toggle(
+        "Include forked / OSS repos",
+        value=False,
+        help="Forked repos will be listed under Contributions."
+    )
+    if include_oss:
+        st.caption("✅ Forked repos will be listed under Contributions.")
+        
     max_projects = st.slider("Max Projects in Resume", 1, 6, 3)
     resume_length = st.radio("Resume Length", ["1 Page", "2 Pages"], horizontal=True)
     
-    provider = st.selectbox("Provider", ["Groq", "Gemini", "HuggingFace"])
-    if provider == "Groq":
-        env_key = os.environ.get("GROQ_API_KEY", "")
-        api_key = st.text_input("Groq API Key", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
-        api_key = api_key or env_key
-        model   = st.selectbox("Model", ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"])
-    elif provider == "Gemini":
-        env_key = os.environ.get("GEMINI_API_KEY", "")
-        api_key = st.text_input("Gemini API Key", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
-        api_key = api_key or env_key
-        model   = st.selectbox("Model", ["gemini-1.5-flash", "gemini-1.5-pro"])
-    else:
-        env_key = os.environ.get("HF_TOKEN", "")
-        api_key = st.text_input("HuggingFace Token", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
-        api_key = api_key or env_key
-        model   = st.selectbox("Model", ["mistralai/Mixtral-8x7B-Instruct-v0.1"])
+    st.markdown("---")
+    with st.expander("Add API Keys", expanded=False):
+        provider = st.selectbox("Provider", ["Groq", "Gemini", "HuggingFace"])
+        if provider == "Groq":
+            env_key = os.environ.get("GROQ_API_KEY", "")
+            api_key = st.text_input("Groq API Key", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
+            api_key = api_key or env_key
+            model   = st.selectbox("Model", ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"])
+        elif provider == "Gemini":
+            env_key = os.environ.get("GEMINI_API_KEY", "")
+            api_key = st.text_input("Gemini API Key", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
+            api_key = api_key or env_key
+            model   = st.selectbox("Model", ["gemini-1.5-flash", "gemini-1.5-pro"])
+        else:
+            env_key = os.environ.get("HF_TOKEN", "")
+            api_key = st.text_input("HuggingFace Token", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
+            api_key = api_key or env_key
+            model   = st.selectbox("Model", ["mistralai/Mixtral-8x7B-Instruct-v0.1"])
 
+    st.markdown("---")
+    st.markdown("### 🔐 GitHub Authentication")
     env_gh = os.environ.get("GITHUB_TOKEN", "")
     github_token = st.text_input(
         "GitHub Token (optional)",
@@ -194,16 +206,18 @@ with st.sidebar:
     if github_token:
         os.environ["GITHUB_TOKEN"] = github_token
 
+    st.markdown("---")
+    st.markdown("### 🗄️ System")
     stats = cache_stats()
-    st.caption(f"🗄️ Cache: {stats['files']} files · {stats['size_kb']} KB")
+    st.caption(f"Cache size: {stats['files']} files · {stats['size_kb']} KB")
     if st.button("🗑️ Clear Cache", use_container_width=True):
-        clear_namespace("github_repos")
-        clear_namespace("github_enrich")
+        from cache import clear_all_cache
+        clear_all_cache()
         st.success("Cache cleared!")
         st.rerun()
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
-def run_pipeline(username, repos, jd_text, instructions):
+def run_pipeline(username, own_repos, jd_text, instructions, forked_repos=None):
     with st.status("⏳ Running pipeline…", expanded=True) as status:
         try:
             if provider == "Groq":        os.environ["GROQ_API_KEY"]   = api_key
@@ -213,13 +227,16 @@ def run_pipeline(username, repos, jd_text, instructions):
             st.write("Step 1 — Extracting JD skills…")
             jd_data = extract_jd_skills_tool(jd_text, provider, model)
 
-            st.write(f"Step 2 — Analysing {len(repos)} repositories…")
-            matches = analyse_repos_tool(repos, jd_data, username, provider, model)
+            st.write(f"Step 2 — Analysing {len(own_repos)} repositories…")
+            matches = analyse_repos_tool(own_repos, jd_data, username, provider, model)
 
             st.write("Step 3 — Generating resume…")
             length_instruction = f"IMPORTANT: Format the resume strictly to fit {resume_length}. Keep descriptions concise if 1 Page."
             final_instructions = f"{length_instruction}\n{instructions}" if instructions else length_instruction
-            resume  = generate_resume_tool(username, matches[:max_projects], jd_data, final_instructions, provider, model)
+            resume  = generate_resume_tool(
+                username, matches[:max_projects], jd_data, final_instructions,
+                provider, model, forked_repos=forked_repos or []
+            )
             tex     = latex.generate_latex(resume)
 
             st.session_state.update(
@@ -251,7 +268,9 @@ else:
                 with st.spinner("Fetching…"):
                     try:
                         r = fetch_github_repos(username)
-                        st.session_state.fetched_repos = r["own_repos"] + r["oss_repos"]
+                        # In quick mode, only show own repos for selection
+                        st.session_state.fetched_repos = r["own_repos"]
+                        st.session_state.fetched_forks = r["oss_repos"]
                         st.session_state.github_username = username
                     except Exception as e:
                         handle_error(e)
@@ -259,7 +278,7 @@ else:
                 st.warning("Enter a username first.")
 
 if not is_full and st.session_state.get("fetched_repos"):
-    st.markdown('<span class="slabel">SELECT REPOSITORIES</span>', unsafe_allow_html=True)
+    st.markdown('<span class="slabel">SELECT REPOSITORIES (own repos only)</span>', unsafe_allow_html=True)
     selected_repos = []
     with st.container(height=200):
         for repo in st.session_state.fetched_repos:
@@ -288,18 +307,20 @@ if st.button("🚀 Generate Resume", use_container_width=True):
             with st.spinner("Fetching repos…"):
                 try:
                     r = fetch_github_repos(username)
-                    repos = r["own_repos"] + r["oss_repos"]
-                    if repos:
-                        run_pipeline(username, repos, jd_text, instructions)
+                    own   = r["own_repos"]
+                    forks = r["oss_repos"] if include_oss else []
+                    if own:
+                        run_pipeline(username, own, jd_text, instructions, forked_repos=forks)
                     else:
-                        st.warning("No repositories found.")
+                        st.warning("No own repositories found.")
                 except Exception as e:
                     handle_error(e)
     else:
         if not selected_repos:
             st.warning("Select at least one repository.")
         else:
-            run_pipeline(st.session_state.github_username, selected_repos, jd_text, instructions)
+            # Quick mode: user selected only own repos; forked repos not shown
+            run_pipeline(st.session_state.github_username, selected_repos, jd_text, instructions, forked_repos=[])
 
 # ── Results ───────────────────────────────────────────────────────────────────
 if "resume_data" not in st.session_state:
@@ -337,6 +358,24 @@ with tab1:
             f"<ul style='margin:0;padding-left:16px;color:#374151;font-size:.88rem'>{buls}</ul></div>"
         )
 
+    contrib_html = ""
+    for c in d.get("contributions", []):
+        cname   = c.get("repo", c.get("name", ""))
+        curl    = c.get("url", "")
+        csummary = c.get("summary", "Open-source contribution")
+        link     = f"<a href='{curl}' style='color:#6d28d9;font-size:.78rem' target='_blank'>↗</a>" if curl else ""
+        contrib_html += (
+            f"<div style='margin-bottom:10px;font-size:.88rem;color:#374151'>"
+            f"<strong>{cname}</strong> {link}"
+            f" — <span style='color:#6b7280'>{csummary}</span>"
+            f"</div>"
+        )
+
+    contrib_section = (
+        "<h3 style='font-size:.72rem;color:#7c3aed;text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px'>Open-Source Contributions</h3>"
+        + contrib_html
+    ) if contrib_html else ""
+
     sum_block = f"<p style='color:#374151;font-size:.9rem;line-height:1.7;margin-bottom:24px'>{summary}</p>" if summary else ""
 
     html = (
@@ -349,7 +388,9 @@ with tab1:
         + "<h3 style='font-size:.72rem;color:#7c3aed;text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px'>Technical Skills</h3>"
         + f"<div style='margin-bottom:24px'>{skills_html}</div>"
         + "<h3 style='font-size:.72rem;color:#7c3aed;text-transform:uppercase;letter-spacing:.08em;margin:0 0 14px'>Projects</h3>"
-        + proj_html + "</div>"
+        + proj_html
+        + contrib_section
+        + "</div>"
     )
     st.html(html)
     st.markdown("<br>", unsafe_allow_html=True)

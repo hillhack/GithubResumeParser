@@ -91,3 +91,14 @@ def clear_namespace(namespace: str) -> int:
             f.unlink()
             count += 1
     return count
+
+def clear_all_cache() -> int:
+    """Delete all cache files across all namespaces and legacy files."""
+    count = 0
+    for f in CACHE_DIR.rglob("*.json"):
+        try:
+            f.unlink()
+            count += 1
+        except Exception:
+            pass
+    return count
