@@ -162,39 +162,39 @@ def handle_error(e):
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 📝 Resume Preferences")
+    st.markdown("#### 📝 Resume Preferences")
     include_oss = st.toggle(
         "Include forked / OSS repos",
         value=False,
         help="Forked repos will be listed under Contributions."
     )
-    if include_oss:
-        st.caption("✅ Forked repos will be listed under Contributions.")
         
-    max_projects = st.slider("Max Projects in Resume", 1, 6, 3)
+    max_projects = st.slider("Max Projects", 1, 6, 3)
     resume_length = st.radio("Resume Length", ["1 Page", "2 Pages"], horizontal=True)
     
-    st.markdown("---")
-    with st.expander("Add API Keys", expanded=False):
-        provider = st.selectbox("Provider", ["Groq", "Gemini", "HuggingFace"])
-        if provider == "Groq":
-            env_key = os.environ.get("GROQ_API_KEY", "")
-            api_key = st.text_input("Groq API Key", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
-            api_key = api_key or env_key
-            model   = st.selectbox("Model", ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"])
-        elif provider == "Gemini":
-            env_key = os.environ.get("GEMINI_API_KEY", "")
-            api_key = st.text_input("Gemini API Key", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
-            api_key = api_key or env_key
-            model   = st.selectbox("Model", ["gemini-1.5-flash", "gemini-1.5-pro"])
-        else:
-            env_key = os.environ.get("HF_TOKEN", "")
-            api_key = st.text_input("HuggingFace Token", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
-            api_key = api_key or env_key
-            model   = st.selectbox("Model", ["mistralai/Mixtral-8x7B-Instruct-v0.1"])
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("#### 🔑 API Keys & Auth")
+    provider = st.selectbox("LLM Provider", ["Groq", "Gemini", "HuggingFace"])
+    if provider == "Groq":
+        env_key = os.environ.get("GROQ_API_KEY", "")
+        api_key = st.text_input("Groq API Key", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
+        st.caption("🔑 Get your API key: [console.groq.com/keys](https://console.groq.com/keys)")
+        api_key = api_key or env_key
+        model   = st.selectbox("Model", ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"])
+    elif provider == "Gemini":
+        env_key = os.environ.get("GEMINI_API_KEY", "")
+        api_key = st.text_input("Gemini API Key", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
+        st.caption("🔑 Get your API key: [aistudio.google.com](https://aistudio.google.com/app/apikey)")
+        api_key = api_key or env_key
+        model   = st.selectbox("Model", ["gemini-1.5-flash", "gemini-1.5-pro"])
+    else:
+        env_key = os.environ.get("HF_TOKEN", "")
+        api_key = st.text_input("HuggingFace Token", type="password", placeholder="Stored securely" if env_key else "Enter your API key")
+        st.caption("🔑 Get your API key: [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)")
+        api_key = api_key or env_key
+        model   = st.selectbox("Model", ["mistralai/Mixtral-8x7B-Instruct-v0.1"])
 
-    st.markdown("---")
-    st.markdown("### 🔐 GitHub Authentication")
+    st.markdown("<br>", unsafe_allow_html=True)
     env_gh = os.environ.get("GITHUB_TOKEN", "")
     github_token = st.text_input(
         "GitHub Token (optional)",
@@ -206,13 +206,13 @@ with st.sidebar:
     if github_token:
         os.environ["GITHUB_TOKEN"] = github_token
 
-    st.markdown("---")
-    st.markdown("### 🗄️ System")
+    st.markdown("<br>", unsafe_allow_html=True)
     stats = cache_stats()
-    st.caption(f"Cache size: {stats['files']} files · {stats['size_kb']} KB")
+    st.caption(f"🗄️ Cache size: {stats['files']} files · {stats['size_kb']} KB")
     if st.button("🗑️ Clear Cache", use_container_width=True):
-        from cache import clear_all_cache
-        clear_all_cache()
+        import cache, importlib
+        importlib.reload(cache)
+        cache.clear_all_cache()
         st.success("Cache cleared!")
         st.rerun()
 
