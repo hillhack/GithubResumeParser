@@ -37,22 +37,39 @@ header[data-testid="stHeader"] {
 }
 
 /* Ensure the main container has space for our topbar */
-.main .block-container { padding-top: 1rem !important; padding-bottom: 3rem; max-width: 760px; }
+.main .block-container { padding-top: 90px !important; padding-bottom: 3rem; max-width: 760px; }
 
 /* ── Modern SaaS Topbar ── */
+/* Sidebar expanded width assumption */
+[data-testid="stSidebar"] {
+    width: 21rem !important;
+}
+
 .topbar-container {
-    position: sticky;
-    top: 1rem;
-    z-index: 999;
+    position: fixed;
+    top: 0;
+    left: 21rem;
+    right: 0;
+    height: 72px;
     background: #0e0e1a;
-    border: 1px solid #1e1e35;
-    border-radius: 12px;
-    padding: 16px 24px;
-    margin-bottom: 30px;
+    border-bottom: 1px solid #1e1e35;
+    z-index: 999;
     display: flex;
     align-items: center;
     gap: 16px;
+    padding: 0 32px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+/* Ensure the sidebar toggle button is always clickable above the fixed topbar */
+[data-testid="collapsedControl"] {
+    z-index: 1000 !important;
+}
+
+/* Header when sidebar is collapsed */
+body:has([data-testid="stSidebar"][aria-expanded="false"]) .topbar-container {
+    left: 0;
+    padding-left: 3.5rem;
 }
 .topbar-logo { font-size: 1.6rem; font-weight: 800; color: #a78bfa; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
 .topbar-logo span { 
@@ -259,7 +276,7 @@ with st.expander("✏️ Custom Instructions (optional)"):
     instructions = st.text_area("inst", placeholder="e.g. Focus on backend work…", height=80, label_visibility="collapsed")
 
 st.markdown("<br>", unsafe_allow_html=True)
-if st.button("🚀 Run Full Pipeline" if is_full else "🚀 Generate Resume", use_container_width=True):
+if st.button("🚀 Generate Resume", use_container_width=True):
     if not api_key:
         st.error("Add your API key in the sidebar.")
     elif not jd_text.strip():
