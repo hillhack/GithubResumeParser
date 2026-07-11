@@ -64,8 +64,108 @@ def fetch_github_repos(username: str) -> Dict[str, List[Dict[str, str]]]:
         set_cached("github_repos", cache_key, result)
         return result
 
+    except requests.exceptions.HTTPError as e:
+        err_msg = ""
+        try:
+            err_msg = e.response.json().get('message', e.response.text)
+        except:
+            err_msg = e.response.text
+        raise ValueError(f"GitHub API Error {e.response.status_code}: {err_msg}")
     except requests.RequestException as e:
         raise ValueError(f"Network error fetching repositories. (Error: {type(e).__name__})")
+
+
+def fetch_user_contributions(username: str) -> List[Dict[str, str]]:
+    """
+    Fetch the user's REAL contributions to external (non-own) repos:
+    1. Merged Pull Requests authored by the user to repos they don't own.
+    2. Push/commit events to external repos via the events API.
+
+    Returns list of dicts: {repo, repo_url, pr_url, title, type}
+    Cached for 24 hours.
+    """
+    if not username:
+        return []
+
+    cache_key = f"contributions:{username}"
+    cached = get_cached("github_contributions", cache_key)
+    if cached:
+        return cached
+
+    contributions: List[Dict[str, str]] = []
+    seen_repos: set = set()
+
+    # ── 1. Merged PRs via Search API ─────────────────────────────────────────
+    try:
+        resp = requests.get(
+            "https://api.github.com/search/issues",
+            headers=_gh_headers(),
+            params={"q": f"author:{username} type:pr is:merged -user:{username}",
+                    "sort": "updated", "per_page": 30},
+            timeout=15
+        )
+        if resp.ok:
+            for item in resp.json().get("items", []):
+                repo_full = item.get("repository_url", "").replace(
+                    "https://api.github.com/repos/", "")
+                if repo_full.startswith(f"{username}/"):
+                    continue
+                key = repo_full
+                if key not in seen_repos:
+                    seen_repos.add(key)
+                    contributions.append({
+                        "repo":     repo_full.split("/")[-1],
+                        "repo_url": f"https://github.com/{repo_full}",
+                        "pr_url":   item.get("html_url", ""),
+                        "title":    item.get("title", "Merged PR"),
+                        "type":     "Merged PR",
+                    })
+    except requests.RequestException:
+        pass
+
+    # ── 2. Push/PR events to external repos (public activity feed) ───────────
+    try:
+        resp = requests.get(
+            f"https://api.github.com/users/{username}/events/public",
+            headers=_gh_headers(),
+            params={"per_page": 100},
+            timeout=15
+        )
+        if resp.ok:
+            for event in resp.json():
+                if event.get("type") not in ("PushEvent", "PullRequestEvent"):
+                    continue
+                repo_full = event.get("repo", {}).get("name", "")
+                if not repo_full or repo_full.startswith(f"{username}/"):
+                    continue
+                if repo_full in seen_repos:
+                    continue
+                seen_repos.add(repo_full)
+                payload = event.get("payload", {})
+                if event["type"] == "PushEvent":
+                    commits = payload.get("commits", [])
+                    desc = commits[0].get("message", "Push")[:100] if commits else "Push"
+                    contributions.append({
+                        "repo":     repo_full.split("/")[-1],
+                        "repo_url": f"https://github.com/{repo_full}",
+                        "pr_url":   "",
+                        "title":    desc,
+                        "type":     "Commit",
+                    })
+                else:
+                    pr = payload.get("pull_request", {})
+                    contributions.append({
+                        "repo":     repo_full.split("/")[-1],
+                        "repo_url": f"https://github.com/{repo_full}",
+                        "pr_url":   pr.get("html_url", ""),
+                        "title":    pr.get("title", "Pull Request"),
+                        "type":     f"PR ({payload.get('action', '')})",
+                    })
+    except requests.RequestException:
+        pass
+
+    set_cached("github_contributions", cache_key, contributions)
+    return contributions
 
 
 # ─── Dependency file candidates ──────────────────────────────────────────────
@@ -94,7 +194,7 @@ def _fetch_text_file(owner: str, repo: str, path: str) -> str | None:
     """Try to fetch a single file from a repo. Returns text content or None."""
     url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
     try:
-        resp = requests.get(url, headers=_gh_headers(), timeout=8)
+        resp = requests.get(url, headers=_gh_headers(), timeout=15)
         if resp.status_code != 200:
             return None
         data = resp.json()
@@ -104,20 +204,24 @@ def _fetch_text_file(owner: str, repo: str, path: str) -> str | None:
             except Exception:
                 return None
         return data.get("content")
-    except requests.RequestException as e:
-        raise ValueError(f"Network error while fetching {path} from GitHub. Please check your internet connection. (Error: {type(e).__name__})")
+    except requests.exceptions.Timeout:
+        return None   # silently skip — slow GitHub response, not a user error
+    except requests.RequestException:
+        return None   # silently skip — non-fatal
 
 
 def _fetch_languages(owner: str, repo: str) -> Dict[str, int]:
     """Fetch language breakdown (name → bytes) for a repo."""
     url = f"https://api.github.com/repos/{owner}/{repo}/languages"
     try:
-        resp = requests.get(url, headers=_gh_headers(), timeout=8)
+        resp = requests.get(url, headers=_gh_headers(), timeout=15)
         if resp.ok:
             return resp.json()
         return {}
-    except requests.RequestException as e:
-        raise ValueError(f"Network error while fetching repository languages from GitHub. Please check your internet connection. (Error: {type(e).__name__})")
+    except requests.exceptions.Timeout:
+        return {}   # silently skip
+    except requests.RequestException:
+        return {}
 
 
 def _parse_dep_names(filename: str, content: str) -> List[str]:
@@ -223,22 +327,37 @@ def enrich_repo(owner: str, repo_name: str) -> Dict[str, Any]:
     if cached:
         return cached
 
-    languages = _fetch_languages(owner, repo_name)
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    readme_text = ""
-    for readme_path in ("README.md", "readme.md", "README.rst", "README"):
-        content = _fetch_text_file(owner, repo_name, readme_path)
-        if content:
-            readme_text = content[:8000]
-            break
+    # Fetch languages + README + all dep files in parallel
+    def _fetch_readme():
+        for readme_path in ("README.md", "readme.md", "README.rst", "README"):
+            content = _fetch_text_file(owner, repo_name, readme_path)
+            if content:
+                return content[:8000]
+        return ""
 
-    dependencies: List[str] = []
-    dep_files_found: List[str] = []
-    for dep_file in _DEP_FILES:
+    def _fetch_dep(dep_file):
         content = _fetch_text_file(owner, repo_name, dep_file)
         if content:
-            dep_files_found.append(dep_file)
-            dependencies.extend(_parse_dep_names(dep_file, content))
+            return dep_file, content
+        return dep_file, None
+
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        lang_future    = ex.submit(_fetch_languages, owner, repo_name)
+        readme_future  = ex.submit(_fetch_readme)
+        dep_futures    = {ex.submit(_fetch_dep, f): f for f in _DEP_FILES}
+
+        languages  = lang_future.result()
+        readme_text = readme_future.result()
+
+        dependencies: List[str] = []
+        dep_files_found: List[str] = []
+        for future in as_completed(dep_futures):
+            dep_file, content = future.result()
+            if content:
+                dep_files_found.append(dep_file)
+                dependencies.extend(_parse_dep_names(dep_file, content))
 
     # Deduplicate raw names
     dependencies = list(dict.fromkeys(dependencies))

@@ -227,10 +227,12 @@ def run_pipeline(username, own_repos, jd_text, instructions, forked_repos=None):
             st.write("Step 1 — Extracting JD skills…")
             jd_data = extract_jd_skills_tool(jd_text, provider, model)
 
-            st.write(f"Step 2 — Analysing {len(own_repos)} repositories…")
+            st.write(f"Step 2 — Analysing {len(own_repos)} repositories (this may take a while)…")
             matches = analyse_repos_tool(own_repos, jd_data, username, provider, model)
 
-            st.write("Step 3 — Generating resume…")
+            st.write("Step 3 — Generating resume… (respecting API limits)")
+            import time
+            time.sleep(3)
             length_instruction = f"IMPORTANT: Format the resume strictly to fit {resume_length}. Keep descriptions concise if 1 Page."
             final_instructions = f"{length_instruction}\n{instructions}" if instructions else length_instruction
             resume  = generate_resume_tool(
@@ -319,8 +321,15 @@ if st.button("🚀 Generate Resume", use_container_width=True):
         if not selected_repos:
             st.warning("Select at least one repository.")
         else:
-            # Quick mode: user selected only own repos; forked repos not shown
-            run_pipeline(st.session_state.github_username, selected_repos, jd_text, instructions, forked_repos=[])
+            # Quick mode: also fetch forks so contributions are included
+            forks_qs: list = []
+            if include_oss:
+                try:
+                    fetched = fetch_github_repos(st.session_state.github_username)
+                    forks_qs = fetched.get("oss_repos", [])
+                except Exception:
+                    pass
+            run_pipeline(st.session_state.github_username, selected_repos, jd_text, instructions, forked_repos=forks_qs)
 
 # ── Results ───────────────────────────────────────────────────────────────────
 if "resume_data" not in st.session_state:
@@ -360,15 +369,23 @@ with tab1:
 
     contrib_html = ""
     for c in d.get("contributions", []):
-        cname   = c.get("repo", c.get("name", ""))
-        curl    = c.get("url", "")
+        cname    = c.get("repo", c.get("name", ""))
+        curl     = c.get("url", "")
+        ctitle   = c.get("title", "")
+        ctype    = c.get("type", "")
         csummary = c.get("summary", "Open-source contribution")
         link     = f"<a href='{curl}' style='color:#6d28d9;font-size:.78rem' target='_blank'>↗</a>" if curl else ""
+        badge_color = "#14532d" if "Merged" in ctype else "#1e3a5f"
+        badge_text  = "#4ade80" if "Merged" in ctype else "#60a5fa"
+        badge = (
+            f"<span style='background:{badge_color};color:{badge_text};border-radius:20px;"
+            f"padding:1px 8px;font-size:.72rem;font-weight:600;margin-left:6px'>{ctype}</span>"
+        ) if ctype else ""
         contrib_html += (
             f"<div style='margin-bottom:10px;font-size:.88rem;color:#374151'>"
-            f"<strong>{cname}</strong> {link}"
-            f" — <span style='color:#6b7280'>{csummary}</span>"
-            f"</div>"
+            f"<strong>{cname}</strong>{badge} {link}"
+            + (f"<div style='color:#6b7280;font-size:.82rem;margin-top:2px'>{ctitle}</div>" if ctitle else "")
+            + f"</div>"
         )
 
     contrib_section = (
@@ -412,8 +429,7 @@ with tab3:
                 all_matched[k] = all_matched.get(k, 0) + 1
 
         # Build the full JD required skill set
-        skill_keys = ["technical_skills", "tools_and_technologies",
-                      "programming_languages", "domain_knowledge", "nice_to_have"]
+        skill_keys = ["skills", "tools", "libraries", "technologies", "domain_knowledge", "nice_to_have", "programming_languages", "technical_skills", "tools_and_technologies"]
         jd_all: list[str] = []
         for key in skill_keys:
             jd_all.extend(jd_profile.get(key, []))
@@ -465,15 +481,107 @@ with tab4:
         for i, r in enumerate(match_results):
             score = r.get("match_score", 0)
             with st.expander(f"#{i+1} {r['name']} — {score}% Match", expanded=(i == 0)):
-                rc1, rc2 = st.columns(2)
-                with rc1:
-                    matched = r.get("matched_skills", [])
-                    st.markdown("".join(f'<span class="pill-ok">{s}</span>' for s in matched) or "_none_", unsafe_allow_html=True)
-                with rc2:
-                    missing = r.get("missing_skills", [])
-                    st.markdown("".join(f'<span class="pill-no">{s}</span>' for s in missing[:15]) or "_none_", unsafe_allow_html=True)
-                for h in r.get("highlights", []):
-                    st.markdown(f"- {h}")
+                title = r.get("project_title", r["name"])
+                url   = r.get("url", "")
+                st.markdown(
+                    f"**{title}**" + (f" &nbsp; [↗]({url})" if url else ""),
+                    unsafe_allow_html=True
+                )
+                if r.get("objective"):
+                    st.markdown(f"<span style='color:#64748b;font-style:italic'>{r.get('objective')}</span>",
+                                unsafe_allow_html=True)
+
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                # Build matched set: deterministic matched_skills + all LLM-extracted items
+                # Normalize everything for fuzzy comparison (handles REST API vs REST APIs)
+                def _norm(s: str) -> str:
+                    import re as _re
+                    s = s.lower().strip().replace('-', ' ')
+                    s = _re.sub(r'\s+', ' ', s)
+                    s = s.rstrip('s') if len(s) > 4 else s
+                    return s
+
+                jd_normalized = {_norm(s) for s in st.session_state.get("jd_profile", {}).get("skills", [])}
+                for _k in ["tools", "libraries", "technologies", "technical_skills", "tools_and_technologies", "programming_languages", "domain_knowledge"]:
+                    jd_normalized |= {_norm(s) for s in st.session_state.get("jd_profile", {}).get(_k, [])}
+
+                repo_skill_norm = set()
+                for _k in ["matched_skills", "skills", "tools", "libraries", "technologies", "domain"]:
+                    repo_skill_norm |= {_norm(s) for s in r.get(_k, [])}
+
+                def _is_green(item: str) -> bool:
+                    n = _norm(item)
+                    if n in jd_normalized:
+                        return True
+                    # substring fuzzy check
+                    for jd_s in jd_normalized:
+                        if len(n) >= 4 and len(jd_s) >= 4 and (n in jd_s or jd_s in n):
+                            return True
+                    return False
+
+                def _skill_pills(items: list) -> str:
+                    if not items:
+                        return "<span style='color:#64748b;font-size:.82rem'>None</span>"
+                    pills = []
+                    for item in items:
+                        if _is_green(item):
+                            pills.append(
+                                f"<span style='background:transparent;color:#4ade80;"
+                                f"border:1.5px solid #4ade80;"
+                                f"border-radius:20px;padding:3px 10px;margin:3px;font-size:.80rem;"
+                                f"display:inline-block;font-weight:600'>{item}</span>"
+                            )
+                        else:
+                            pills.append(
+                                f"<span style='background:transparent;color:#94a3b8;"
+                                f"border:1px solid #334155;"
+                                f"border-radius:20px;padding:3px 10px;margin:3px;font-size:.80rem;"
+                                f"display:inline-block'>{item}</span>"
+                            )
+                    return "".join(pills)
+
+                def _missing_pills(items: list) -> str:
+                    if not items:
+                        return ""
+                    pills = []
+                    for item in items:
+                        pills.append(
+                            f"<span style='background:transparent;color:#f87171;"
+                            f"border:1.5px solid #f87171;"
+                            f"border-radius:20px;padding:3px 10px;margin:3px;font-size:.80rem;"
+                            f"display:inline-block'>{item}</span>"
+                        )
+                    return "".join(pills)
+
+                categories = [
+                    ("🌐 Domain",       r.get("domain", [])),
+                    ("🧠 Skills",       r.get("skills", [])),
+                    ("🛠️ Tools",        r.get("tools", [])),
+                    ("📚 Libraries",    r.get("libraries", [])),
+                    ("💻 Technologies", r.get("technologies", [])),
+                ]
+
+                for cat_label, cat_items in categories:
+                    st.markdown(
+                        f"<p style='margin:6px 0 2px;font-size:.78rem;font-weight:700;"
+                        f"color:#64748b;text-transform:uppercase;letter-spacing:.05em'>{cat_label}</p>",
+                        unsafe_allow_html=True
+                    )
+                    st.markdown(_skill_pills(cat_items), unsafe_allow_html=True)
+
+                # Missing skills with red border
+                missing = r.get("missing_skills", [])
+                if missing:
+                    st.markdown(
+                        "<p style='margin:10px 0 2px;font-size:.78rem;font-weight:700;"
+                        "color:#64748b;text-transform:uppercase;letter-spacing:.05em'>❌ Missing from JD</p>",
+                        unsafe_allow_html=True
+                    )
+                    st.markdown(_missing_pills(missing[:20]), unsafe_allow_html=True)
+
+                if r.get("llm_error"):
+                    st.warning(f"⚠️ LLM analysis failed: `{r['llm_error']}`")
 
 
 # ── JD Analyser ───────────────────────────────────────────────────────────────
@@ -482,26 +590,29 @@ with tab5:
     if not jd:
         st.info("Run the pipeline to see the JD breakdown.")
     else:
-        tech  = jd.get("technical_skills", [])
-        tools = jd.get("tools_and_technologies", [])
-        langs = jd.get("programming_languages", [])
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Technical Skills", len(tech))
-        m2.metric("Tools & Tech", len(tools))
-        m3.metric("Languages", len(langs))
+        skills = jd.get("skills", []) + jd.get("technical_skills", [])
+        tools = jd.get("tools", []) + jd.get("tools_and_technologies", [])
+        libs = jd.get("libraries", [])
+        techs = jd.get("technologies", []) + jd.get("programming_languages", [])
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Skills", len(skills))
+        m2.metric("Tools", len(tools))
+        m3.metric("Libraries", len(libs))
+        m4.metric("Techs", len(techs))
         st.markdown("<br>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown("#### 🧠 Technical Skills")
-            for s in tech: st.markdown(f"- {s}")
-            if langs:
-                st.markdown("#### 🖥️ Languages")
-                st.markdown("  ".join(f"`{l}`" for l in langs))
+            st.markdown("#### 🧠 Skills")
+            for s in skills: st.markdown(f"- {s}")
+            if techs:
+                st.markdown("#### 🖥️ Technologies")
+                st.markdown("  ".join(f"`{l}`" for l in techs))
         with c2:
-            st.markdown("#### 🛠️ Tools & Tech")
+            st.markdown("#### 🛠️ Tools")
             for t in tools: st.markdown(f"- {t}")
-            exp = jd.get("experience_level", "")
-            if exp: st.markdown(f"#### 📌 Experience\n{exp}")
+            if libs:
+                st.markdown("#### 📚 Libraries")
+                for l in libs: st.markdown(f"- {l}")
 
 # ── LaTeX Source ──────────────────────────────────────────────────────────────
 with tab2:

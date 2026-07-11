@@ -14,8 +14,9 @@ from llm_providers import get_gemini_response, get_huggingface_response, get_gro
 
 EXTRACTION_PROMPT = """You are an expert HR analyst and skills taxonomy specialist.
 
-Analyze the following Job Description(s) carefully and extract a comprehensive, structured breakdown.
+Analyze the following Job Description (JD) carefully. Your ONLY job is to accurately and precisely extract the core requirements: the position, the domain, and the specific skills, tools, libraries, and technologies that a candidate MUST know, needs to learn, or have worked on to apply for this role.
 
+Extract a structured JSON breakdown with EXACTLY these keys:
 {{
   "job_title": "string",
   "company_or_project": "string or null",
@@ -26,7 +27,12 @@ Analyze the following Job Description(s) carefully and extract a comprehensive, 
   "domain_knowledge": ["list of domain-specific knowledge areas"],
   "key_responsibilities": ["top 5-7 responsibilities as short bullets"],
   "nice_to_have": ["optional/preferred skills"],
-  "summary": "2-3 sentence plain-language summary of what this role needs"
+  "summary": "2-3 sentence plain-language summary of what this role needs",
+  "position": "The exact job title or position",
+  "skills": ["list of hard technical skills (e.g. Machine Learning, API Design)"],
+  "tools": ["list of specific software tools or platforms (e.g. Docker, AWS, Jira)"],
+  "libraries": ["list of programming libraries or frameworks (e.g. React, Pandas)"],
+  "technologies": ["list of programming languages or core technologies (e.g. Python, SQL, REST)"]
 }}
 
 Rules:
